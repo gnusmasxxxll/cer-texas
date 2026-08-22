@@ -1,75 +1,123 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pl">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Texas Hol</title>
+  <title>Texas Hold'em — Stół Pokerowy</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="container">
-    <header>
-      <h1>🃏 Texas Hol</h1>
+  <div class="app">
+    <header class="topbar">
+      <div>
+        <h1>♠ Texas Hold'em</h1>
+        <p>Gra towarzyska na punkty · projekt szkolny</p>
+      </div>
+      <div class="topbar-status">
+        <span id="playerInfo">Gracz: —</span>
+        <span id="pointsInfo">Żetony: 1000</span>
+      </div>
     </header>
 
-    <div id="loginScreen" class="screen">
-      <div class="login-container">
-        <h2>Logowanie</h2>
-        <form id="loginForm">
-          <input type="text" id="username" placeholder="Nazwa użytkownika" required>
-          <input type="password" id="password" placeholder="Hasło" required>
-          <button type="submit">Zaloguj</button>
-        </form>
-        <p id="loginMessage"></p>
-        <div class="credentials">
-          <h3>Dostępne konta:</h3>
-          <p>gracz1 / 123</p>
-          <p>gracz2 / 123</p>
-          <p>gracz3 / 123</p>
-          <p>gracz4 / 123</p>
-          <p>gracz5 / 123</p>
-          <p>gracz6 / 123</p>
-        </div>
-      </div>
-    </div>
+    <main>
+      <section id="loginScreen" class="login-screen">
+        <div class="login-box">
+          <div class="card-symbols">♠ ♥ ♦ ♣</div>
+          <h2>Wejdź do stołu</h2>
+          <p class="login-description">Wybierz jedno z przygotowanych kont gracza.</p>
 
-    <div id="gameScreen" class="screen hidden">
-      <div class="game-info">
-        <span id="playerInfo">Gracz: --</span>
-        <span id="pointsInfo">Punkty: 1000</span>
-      </div>
+          <form id="loginForm">
+            <label for="username">Login</label>
+            <input id="username" type="text" placeholder="np. gracz1" autocomplete="username" required>
 
-      <div class="table">
-        <div class="community-cards">
-          <h3>Karty wspólne</h3>
-          <div id="communityCards" class="cards"></div>
-          <div id="potInfo">Pula: 0</div>
-        </div>
+            <label for="password">Hasło</label>
+            <input id="password" type="password" placeholder="Hasło" autocomplete="current-password" required>
 
-        <div class="players-area">
-          <h3>Gracze</h3>
-          <div id="playersList" class="players"></div>
-        </div>
+            <button type="submit">Zaloguj się do stołu</button>
+          </form>
 
-        <div class="my-cards">
-          <h3>Twoje karty</h3>
-          <div id="myCards" class="cards"></div>
-        </div>
+          <p id="loginMessage" class="login-message"></p>
 
-        <div class="controls">
-          <div id="gameControls" class="hidden">
-            <button onclick="sendAction('check')">Czekam</button>
-            <button onclick="sendAction('call')">Sprawdzam</button>
-            <input type="number" id="betAmount" placeholder="Kwota" min="10">
-            <button onclick="sendAction('bet')">Podbijam</button>
-            <button onclick="sendAction('fold')">Pas</button>
+          <div class="accounts">
+            <strong>Gotowe konta</strong>
+            <span>gracz1 / 123</span>
+            <span>gracz2 / 123</span>
+            <span>gracz3 / 123</span>
+            <span>gracz4 / 123</span>
+            <span>gracz5 / 123</span>
+            <span>gracz6 / 123</span>
           </div>
-          <button id="startBtn" onclick="startGame()">Rozpocznij grę</button>
+        </div>
+      </section>
+
+      <section id="gameScreen" class="game-screen hidden">
+        <div class="game-toolbar">
+          <div id="phaseInfo" class="phase-badge">OCZEKIWANIE</div>
+          <div id="potInfo" class="pot-info">PULA: 0</div>
+          <button id="startBtn" class="start-button" onclick="startGame()">Rozpocznij rozdanie</button>
         </div>
 
-        <div id="messages" class="messages"></div>
-      </div>
-    </div>
+        <div class="poker-stage">
+          <div class="poker-table">
+            <div class="table-rim">
+              <div class="table-felt">
+                <div class="table-logo">
+                  <span>♠</span>
+                  <strong>TEXAS HOLD'EM</strong>
+                  <small>GRA NA PUNKTY</small>
+                </div>
+
+                <div class="dealer-area">
+                  <div class="dealer-chip">D</div>
+                  <span>Krupier</span>
+                </div>
+
+                <div class="community-area">
+                  <p>KARTY WSPÓLNE</p>
+                  <div id="communityCards" class="cards community-cards"></div>
+                </div>
+
+                <div id="seatTop" class="seat seat-top"></div>
+                <div id="seatTopLeft" class="seat seat-top-left"></div>
+                <div id="seatTopRight" class="seat seat-top-right"></div>
+                <div id="seatBottomLeft" class="seat seat-bottom-left"></div>
+                <div id="seatBottomRight" class="seat seat-bottom-right"></div>
+              </div>
+            </div>
+          </div>
+
+          <div id="mySeat" class="seat seat-my-seat"></div>
+        </div>
+
+        <section class="bottom-panel">
+          <div class="hand-panel">
+            <div class="hand-label">
+              <span>Twoje karty</span>
+              <small id="turnInfo">Czekasz na rozpoczęcie rozdania</small>
+            </div>
+            <div id="myCards" class="cards my-cards"></div>
+          </div>
+
+          <div id="gameControls" class="game-controls hidden">
+            <button class="action-button check" onclick="sendAction('check')">Check</button>
+            <button class="action-button call" onclick="sendAction('call')">Call</button>
+
+            <label class="bet-input">
+              <span>Stawka</span>
+              <input type="number" id="betAmount" value="20" min="20" step="10">
+            </label>
+
+            <button class="action-button bet" onclick="sendAction('bet')">Bet / Raise</button>
+            <button class="action-button fold" onclick="sendAction('fold')">Fold</button>
+          </div>
+        </section>
+
+        <section class="messages-panel">
+          <h2>Przebieg gry</h2>
+          <div id="messages" class="messages"></div>
+        </section>
+      </section>
+    </main>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
