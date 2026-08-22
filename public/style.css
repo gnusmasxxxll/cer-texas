@@ -930,4 +930,92 @@ button {
   .seat-my-seat {
     bottom: 0;
   }
+  @media (max-width: 700px) {
+  .poker-stage {
+    height: 540px;
+    min-height: 540px;
+  }
+
+  .poker-table {
+    top: 11%;
+    right: 1%;
+    bottom: 15%;
+    left: 1%;
+    border-width: 9px;
+  }
+
+  .table-rim {
+    padding: 7px;
+  }
+
+  .seat {
+    width: 100px;
+  }
+
+  .seat-top {
+    top: -45px;
+  }
+
+  .seat-top-left {
+    top: 16%;
+    left: -8px;
+  }
+
+  .seat-top-right {
+    top: 16%;
+    right: -8px;
+  }
+
+  .seat-bottom-left {
+    bottom: 1%;
+    left: -8px;
+  }
+
+  .seat-bottom-right {
+    right: -8px;
+    bottom: 1%;
+  }
+
+  .seat-my-seat {
+    bottom: -73px;
+  }
+
+  .player-seat {
+    width: 100px;
+    padding: 6px 4px;
+  }
+
+  .player-name {
+    font-size: 0.72rem;
+  }
+
+  .player-chips,
+  .player-bet {
+    font-size: 0.61rem;
+  }
+
+  .player-status {
+    font-size: 0.55rem;
+  }
+
+  .mini-card {
+    width: 15px;
+    height: 22px;
+  }
+
+  .community-cards .card {
+    width: 40px;
+    height: 59px;
+    font-size: 1rem;
+  }
+
+  .table-logo strong {
+    font-size: 0.68rem;
+    letter-spacing: 1.5px;
+  }
+
+  .table-logo small {
+    font-size: 0.5rem;
+  }
+}
 }
