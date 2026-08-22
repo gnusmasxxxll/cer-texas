@@ -101,11 +101,26 @@ io.on('connection', (socket) => {
       return;
     }
     
-    if (gameState.players.find(p => p.username === username)) {
-      socket.emit('loginResult', { success: false, error: 'Ten gracz już gra' });
-      return;
-    }
-    
+const existingPlayer = gameState.players.find(
+  (player) => player.username === username
+);
+
+/*
+  Po odświeżeniu strona łączy się z nowym socket.id.
+  Aktualizujemy identyfikator istniejącego gracza, zamiast tworzyć go drugi raz.
+*/
+if (existingPlayer) {
+  existingPlayer.id = socket.id;
+
+  socket.emit('loginResult', {
+    success: true,
+    player: existingPlayer
+  });
+
+  io.emit('gameState', gameState);
+  io.emit('message', `${username} ponownie połączył się ze stołem.`);
+  return;
+}    
     const player = {
       id: socket.id,
       username,
@@ -140,7 +155,25 @@ io.on('connection', (socket) => {
     
     handlePlayerAction(player, action, amount);
   });
-  
+  socket.on('logout', () => {
+  const index = gameState.players.findIndex(
+    (player) => player.id === socket.id
+  );
+
+  if (index !== -1) {
+    const player = gameState.players[index];
+
+    console.log(`${player.username} wylogował się`);
+    gameState.players.splice(index, 1);
+
+    if (gameState.players.length < 2) {
+      resetGame();
+    } else {
+      io.emit('gameState', gameState);
+      io.emit('message', `${player.username} opuścił stół.`);
+    }
+  }
+});
   socket.on('disconnect', () => {
     const index = gameState.players.findIndex(p => p.id === socket.id);
     if (index !== -1) {
