@@ -1,5 +1,6 @@
 const socket = io();
 let currentPlayer = null;
+let isManualLogout = false;
 
 const loginScreen = document.getElementById('loginScreen');
 const gameScreen = document.getElementById('gameScreen');
@@ -10,6 +11,8 @@ const loginMessage = document.getElementById('loginMessage');
 
 const playerInfo = document.getElementById('playerInfo');
 const pointsInfo = document.getElementById('pointsInfo');
+const logoutBtn = document.getElementById('logoutBtn');
+
 const phaseInfo = document.getElementById('phaseInfo');
 const turnInfo = document.getElementById('turnInfo');
 const potInfo = document.getElementById('potInfo');
@@ -29,27 +32,101 @@ const seatElements = [
   document.getElementById('seatBottomRight')
 ];
 
+/*
+  Dane do automatycznego logowania zostaną zapisane tylko lokalnie
+  w przeglądarce danego użytkownika.
+*/
+const STORAGE_KEY = 'texasHoldemLogin';
+
 loginForm.addEventListener('submit', (event) => {
   event.preventDefault();
 
-  socket.emit('login', {
-    username: usernameInput.value.trim(),
-    password: passwordInput.value
-  });
+  const username = usernameInput.value.trim();
+  const password = passwordInput.value;
+
+  if (!username || !password) {
+    loginMessage.textContent = 'Podaj login oraz hasło.';
+    return;
+  }
+
+  isManualLogout = false;
+  socket.emit('login', { username, password });
+});
+
+logoutBtn.addEventListener('click', () => {
+  isManualLogout = true;
+
+  /*
+    Usuwa dane automatycznego logowania z przeglądarki.
+    Serwer usuwa gracza z gry.
+  */
+  localStorage.removeItem(STORAGE_KEY);
+
+  socket.emit('logout');
+
+  currentPlayer = null;
+  gameScreen.classList.add('hidden');
+  loginScreen.classList.remove('hidden');
+  logoutBtn.classList.add('hidden');
+
+  usernameInput.value = '';
+  passwordInput.value = '';
+  loginMessage.textContent = 'Wylogowano pomyślnie.';
+});
+
+socket.on('connect', () => {
+  /*
+    Po odświeżeniu strony odczytujemy zapisane dane
+    i automatycznie odtwarzamy sesję gracza.
+  */
+  const savedLogin = localStorage.getItem(STORAGE_KEY);
+
+  if (savedLogin && !isManualLogout && !currentPlayer) {
+    try {
+      const credentials = JSON.parse(savedLogin);
+      socket.emit('login', credentials);
+    } catch (error) {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+  }
 });
 
 socket.on('loginResult', (data) => {
   if (!data.success) {
     loginMessage.textContent = data.error;
+
+    /*
+      Gdy login nie może zostać odtworzony, np. konto jest użyte
+      na innym komputerze, nie próbujemy automatycznie w kółko.
+    */
+    if (!currentPlayer) {
+      localStorage.removeItem(STORAGE_KEY);
+    }
+
     return;
   }
 
   currentPlayer = data.player;
+
+  /*
+    Zapamiętujemy dane wyłącznie do automatycznego zalogowania
+    po odświeżeniu bieżącej przeglądarki.
+  */
+  localStorage.setItem(
+    STORAGE_KEY,
+    JSON.stringify({
+      username: data.player.username,
+      password: passwordInput.value || getSavedPassword()
+    })
+  );
+
   loginScreen.classList.add('hidden');
   gameScreen.classList.remove('hidden');
+  logoutBtn.classList.remove('hidden');
 
   playerInfo.textContent = `Gracz: ${currentPlayer.username}`;
   pointsInfo.textContent = `Żetony: ${currentPlayer.chips}`;
+
   addMessage(`Witaj przy stole, ${currentPlayer.username}.`);
 });
 
@@ -65,8 +142,27 @@ socket.on('error', (message) => {
   addMessage(`Błąd: ${message}`);
 });
 
+function getSavedPassword() {
+  try {
+    const savedLogin = JSON.parse(localStorage.getItem(STORAGE_KEY));
+    return savedLogin.password || '';
+  } catch {
+    return '';
+  }
+}
+
 function renderGame(state) {
   const me = state.players.find((player) => player.id === currentPlayer?.id);
+
+  /*
+    Po odświeżeniu socket.id zmienia się.
+    Aby interfejs nadal znalazł gracza, porównujemy także login.
+  */
+  const meByUsername = state.players.find(
+    (player) => player.username === currentPlayer?.username
+  );
+
+  const actualMe = me || meByUsername;
 
   phaseInfo.textContent = getPhaseLabel(state.phase);
   potInfo.textContent = `PULA: ${state.pot}`;
@@ -75,20 +171,19 @@ function renderGame(state) {
     .map(createCardHTML)
     .join('');
 
-  if (me) {
-    currentPlayer = { ...currentPlayer, chips: me.chips };
-    pointsInfo.textContent = `Żetony: ${me.chips}`;
-    myCardsEl.innerHTML = me.cards.map(createCardHTML).join('');
-    mySeatEl.innerHTML = createSeatHTML(me, true, state);
+  if (actualMe) {
+    currentPlayer = { ...currentPlayer, ...actualMe };
+
+    pointsInfo.textContent = `Żetony: ${actualMe.chips}`;
+    myCardsEl.innerHTML = actualMe.cards.map(createCardHTML).join('');
+    mySeatEl.innerHTML = createSeatHTML(actualMe, true, state);
   } else {
     mySeatEl.innerHTML = createEmptySeatHTML('Twoje miejsce');
   }
 
-  /*
-    Zawsze pokazujemy zalogowanego użytkownika na dole.
-    Inni gracze są rozstawieni kolejno wokół stołu.
-  */
-  const opponents = state.players.filter((player) => player.id !== currentPlayer?.id);
+  const opponents = state.players.filter(
+    (player) => player.username !== currentPlayer?.username
+  );
 
   seatElements.forEach((seatElement, index) => {
     const opponent = opponents[index];
@@ -98,12 +193,13 @@ function renderGame(state) {
       : createEmptySeatHTML('Wolne miejsce');
   });
 
+  const activePlayer = state.players[state.currentPlayerIndex];
   const isMyTurn =
-    me &&
+    actualMe &&
     state.phase !== 'waiting' &&
-    state.players[state.currentPlayerIndex]?.id === currentPlayer?.id;
+    activePlayer?.username === currentPlayer?.username;
 
-  if (isMyTurn && !me.folded && !me.allIn) {
+  if (isMyTurn && !actualMe.folded && !actualMe.allIn) {
     gameControls.classList.remove('hidden');
     startBtn.classList.add('hidden');
     turnInfo.textContent = 'Twoja kolej — wybierz ruch.';
@@ -116,12 +212,11 @@ function renderGame(state) {
     } else {
       startBtn.classList.add('hidden');
 
-      if (me?.folded) {
+      if (actualMe?.folded) {
         turnInfo.textContent = 'Spasowałeś — czekasz na kolejne rozdanie.';
-      } else if (me?.allIn) {
+      } else if (actualMe?.allIn) {
         turnInfo.textContent = 'Jesteś all-in — czekasz na wynik.';
       } else {
-        const activePlayer = state.players[state.currentPlayerIndex];
         turnInfo.textContent = activePlayer
           ? `Ruch wykonuje: ${activePlayer.username}`
           : 'Trwa rozdanie.';
@@ -132,7 +227,7 @@ function renderGame(state) {
 
 function createSeatHTML(player, isMine, state) {
   const activePlayer = state.players[state.currentPlayerIndex];
-  const isActive = activePlayer?.id === player.id;
+  const isActive = activePlayer?.username === player.username;
 
   const classes = [
     'player-seat',
@@ -141,8 +236,6 @@ function createSeatHTML(player, isMine, state) {
     player.folded ? 'folded' : ''
   ].filter(Boolean).join(' ');
 
-  const firstLetter = escapeHTML(player.username.charAt(0).toUpperCase());
-  const betText = player.bet > 0 ? `Stawka: ${player.bet}` : 'Stawka: —';
   const status = player.folded
     ? 'FOLD'
     : player.allIn
@@ -151,23 +244,19 @@ function createSeatHTML(player, isMine, state) {
         ? 'TWOJA KOLEJ'
         : '';
 
-  const opponentCards = isMine
-    ? ''
-    : `
-      <div class="player-hole-cards" aria-label="Zakryte karty">
-        <div class="mini-card"></div>
-        <div class="mini-card"></div>
-      </div>
-    `;
-
   return `
     <article class="${classes}">
-      <div class="player-avatar">${firstLetter}</div>
+      <div class="player-avatar">${escapeHTML(player.username.charAt(0).toUpperCase())}</div>
       <div class="player-name">${escapeHTML(player.username)}${isMine ? ' (Ty)' : ''}</div>
       <div class="player-chips">● ${player.chips} żetonów</div>
-      <div class="player-bet">${betText}</div>
+      <div class="player-bet">${player.bet > 0 ? `Stawka: ${player.bet}` : 'Stawka: —'}</div>
       <div class="player-status">${status}</div>
-      ${opponentCards}
+      ${isMine ? '' : `
+        <div class="player-hole-cards">
+          <div class="mini-card"></div>
+          <div class="mini-card"></div>
+        </div>
+      `}
     </article>
   `;
 }
@@ -182,7 +271,12 @@ function createEmptySeatHTML(label) {
 
 function createCardHTML(card) {
   const isRed = card.suit === '♥' || card.suit === '♦';
-  return `<div class="card ${isRed ? 'red' : 'black'}">${card.value}${card.suit}</div>`;
+
+  return `
+    <div class="card ${isRed ? 'red' : 'black'}">
+      ${card.value}${card.suit}
+    </div>
+  `;
 }
 
 function getPhaseLabel(phase) {
