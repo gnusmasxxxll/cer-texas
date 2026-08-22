@@ -205,3 +205,16 @@ button { cursor: pointer; }
   .table-logo strong { font-size: .67rem; letter-spacing: 1px; }
   .table-logo small { font-size: .5rem; }
 }
+.logout-button {
+  padding: 8px 12px;
+  border: 1px solid rgba(255, 130, 125, 0.75);
+  border-radius: 20px;
+  color: #ffd6d3;
+  background: rgba(168, 58, 58, 0.35);
+  font-size: 0.85rem;
+  font-weight: bold;
+}
+
+.logout-button:hover {
+  background: rgba(168, 58, 58, 0.75);
+}
