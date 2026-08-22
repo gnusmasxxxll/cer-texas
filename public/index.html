@@ -1,0 +1,79 @@
+﻿<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Texas Hold'em - Projekt Szkolny</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🃏 Texas Hold'em</h1>
+      <p class="subtitle">Gra na punkty - Projekt Szkolny</p>
+    </header>
+
+    <div id="loginScreen" class="screen">
+      <div class="login-container">
+        <h2>Logowanie</h2>
+        <form id="loginForm">
+          <input type="text" id="username" placeholder="Nazwa użytkownika" required>
+          <input type="password" id="password" placeholder="Hasło" required>
+          <button type="submit">Zaloguj</button>
+        </form>
+        <p id="loginMessage"></p>
+        <div class="credentials">
+          <h3>Dostępne konta:</h3>
+          <p>gracz1 / 123</p>
+          <p>gracz2 / 123</p>
+          <p>gracz3 / 123</p>
+          <p>gracz4 / 123</p>
+          <p>gracz5 / 123</p>
+          <p>gracz6 / 123</p>
+        </div>
+      </div>
+    </div>
+
+    <div id="gameScreen" class="screen hidden">
+      <div class="game-info">
+        <span id="playerInfo">Gracz: --</span>
+        <span id="pointsInfo">Punkty: 1000</span>
+      </div>
+
+      <div class="table">
+        <div class="community-cards">
+          <h3>Karty wspólne</h3>
+          <div id="communityCards" class="cards"></div>
+          <div id="potInfo">Pula: 0</div>
+        </div>
+
+        <div class="players-area">
+          <h3>Gracze</h3>
+          <div id="playersList" class="players"></div>
+        </div>
+
+        <div class="my-cards">
+          <h3>Twoje karty</h3>
+          <div id="myCards" class="cards"></div>
+        </div>
+
+        <div class="controls">
+          <div id="gameControls" class="hidden">
+            <button onclick="sendAction('check')">Check</button>
+            <button onclick="sendAction('call')">Call</button>
+            <input type="number" id="betAmount" placeholder="Kwota" min="10">
+            <button onclick="sendAction('bet')">Bet</button>
+            <button onclick="sendAction('fold')">Fold</button>
+          </div>
+          <button id="startBtn" onclick="startGame()">Rozpocznij grę</button>
+        </div>
+
+        <div id="messages" class="messages"></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>

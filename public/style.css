@@ -1,0 +1,298 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  color: #fff;
+  min-height: 100vh;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+header h1 {
+  font-size: 2.5rem;
+  color: #ffd700;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+}
+
+.subtitle {
+  color: #aaa;
+  font-size: 1.1rem;
+  margin-top: 5px;
+}
+
+.screen {
+  background: rgba(255,255,255,0.1);
+  border-radius: 15px;
+  padding: 30px;
+  backdrop-filter: blur(10px);
+}
+
+.hidden {
+  display: none;
+}
+
+.login-container {
+  max-width: 400px;
+  margin: 50px auto;
+  text-align: center;
+}
+
+.login-container h2 {
+  margin-bottom: 20px;
+  color: #ffd700;
+}
+
+#loginForm {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+#loginForm input {
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  background: rgba(255,255,255,0.9);
+}
+
+#loginForm button {
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  font-weight: bold;
+  background: #4CAF50;
+  color: white;
+}
+
+#loginMessage {
+  margin-top: 15px;
+  padding: 10px;
+  border-radius: 5px;
+}
+
+.credentials {
+  margin-top: 20px;
+  padding: 15px;
+  background: rgba(0,0,0,0.3);
+  border-radius: 8px;
+  text-align: left;
+}
+
+.credentials h3 {
+  color: #ffd700;
+  margin-bottom: 10px;
+}
+
+.credentials p {
+  margin: 5px 0;
+  color: #ddd;
+}
+
+.game-info {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding: 10px;
+  background: rgba(0,0,0,0.3);
+  border-radius: 8px;
+}
+
+.table {
+  background: linear-gradient(135deg, #2d5016 0%, #1a3009 100%);
+  border-radius: 15px;
+  padding: 30px;
+  border: 8px solid #8b4513;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+.community-cards, .my-cards {
+  text-align: center;
+  margin: 20px 0;
+}
+
+.community-cards h3, .my-cards h3, .players-area h3 {
+  color: #ffd700;
+  margin-bottom: 10px;
+}
+
+.cards {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.card {
+  width: 60px;
+  height: 90px;
+  background: white;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  font-weight: bold;
+  box-shadow: 2px 2px 5px rgba(0,0,0,0.3);
+}
+
+.card.red {
+  color: #e74c3c;
+}
+
+.card.black {
+  color: #2c3e50;
+}
+
+#potInfo {
+  font-size: 1.3rem;
+  color: #ffd700;
+  margin-top: 10px;
+  font-weight: bold;
+}
+
+.players-area {
+  margin: 30px 0;
+}
+
+.players {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 15px;
+}
+
+.player {
+  background: rgba(0,0,0,0.4);
+  padding: 15px;
+  border-radius: 10px;
+  border: 2px solid transparent;
+}
+
+.player.active {
+  border-color: #ffd700;
+  background: rgba(255,215,0,0.2);
+}
+
+.player.folded {
+  opacity: 0.5;
+}
+
+.player h4 {
+  color: #ffd700;
+  margin-bottom: 5px;
+}
+
+.player .chips {
+  color: #4CAF50;
+  font-weight: bold;
+}
+
+.player .bet {
+  color: #ff9800;
+  margin-top: 5px;
+}
+
+.controls {
+  text-align: center;
+  margin-top: 30px;
+}
+
+#gameControls {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 15px;
+}
+
+#gameControls button, #startBtn {
+  padding: 12px 25px;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  cursor: pointer;
+  font-weight: bold;
+  transition: transform 0.2s;
+}
+
+#gameControls button:hover, #startBtn:hover {
+  transform: scale(1.05);
+}
+
+#gameControls button:nth-child(1) {
+  background: #9b59b6;
+  color: white;
+}
+
+#gameControls button:nth-child(2) {
+  background: #3498db;
+  color: white;
+}
+
+#betAmount {
+  padding: 12px;
+  width: 100px;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+#gameControls button:nth-child(4) {
+  background: #e67e22;
+  color: white;
+}
+
+#gameControls button:nth-child(5) {
+  background: #e74c3c;
+  color: white;
+}
+
+#startBtn {
+  background: #4CAF50;
+  color: white;
+  padding: 15px 40px;
+  font-size: 1.2rem;
+}
+
+.messages {
+  margin-top: 20px;
+  padding: 15px;
+  background: rgba(0,0,0,0.3);
+  border-radius: 8px;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.messages p {
+  margin: 5px 0;
+  color: #ddd;
+}
+
+@media (max-width: 768px) {
+  .card {
+    width: 45px;
+    height: 70px;
+    font-size: 1.2rem;
+  }
+  
+  #gameControls {
+    flex-direction: column;
+    align-items: center;
+  }
+}
