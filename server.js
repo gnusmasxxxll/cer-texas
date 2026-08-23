@@ -11,12 +11,12 @@ app.use(express.static('public'));
 
 // Gotowe konta (6 graczy)
 const VALID_USERS = [
-  { username: 'gracz1', password: '123' },
-  { username: 'gracz2', password: '123' },
-  { username: 'gracz3', password: '123' },
-  { username: 'gracz4', password: '123' },
-  { username: 'gracz5', password: '123' },
-  { username: 'gracz6', password: '123' }
+  { username: 'ms', password: '123' },
+  { username: 'kb', password: '123' },
+  { username: 'gs', password: '123' },
+  { username: 'kk', password: '123' },
+  { username: 'rp', password: '123' },
+  { username: 'xd', password: '123' }
 ];
 
 // Logika kart
