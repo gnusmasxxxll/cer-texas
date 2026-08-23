@@ -163,7 +163,10 @@ function removePlayer(socketId, notify) {
 function startNewRound() {
   if (gameState.gameOver) return;
 
-  const playersWithPoints = gameState.players.filter(player => player.chips > 0);
+  const playersWithPoints = gameState.players.filter(
+    player => player.chips > 0
+  );
+
   if (playersWithPoints.length < 2) {
     finishHandOrGame();
     return;
@@ -176,23 +179,56 @@ function startNewRound() {
   gameState.phase = 'preflop';
 
   gameState.players.forEach(player => {
-    player.cards = player.chips > 0 ? [gameState.deck.pop(), gameState.deck.pop()] : [];
+    player.cards = player.chips > 0
+      ? [gameState.deck.pop(), gameState.deck.pop()]
+      : [];
+
     player.bet = 0;
     player.folded = player.chips <= 0;
     player.allIn = false;
   });
 
-  const dealerIndex = gameState.dealerIndex % gameState.players.length;
-  const sbIndex = (dealerIndex + 1) % gameState.players.length;
-  const bbIndex = (dealerIndex + 2) % gameState.players.length;
+  const playersCount = gameState.players.length;
+  const dealerIndex = gameState.dealerIndex % playersCount;
+
+  let sbIndex;
+  let bbIndex;
+  let firstPlayerIndex;
+
+  if (playersCount === 2) {
+    /*
+      Heads-up:
+      - dealer wpłaca SB,
+      - drugi gracz wpłaca BB,
+      - dealer rozpoczyna preflop.
+    */
+    sbIndex = dealerIndex;
+    bbIndex = (dealerIndex + 1) % playersCount;
+    firstPlayerIndex = dealerIndex;
+  } else {
+    /*
+      Od 3 do 6 graczy:
+      - SB jest po lewej od dealera,
+      - BB jest następny,
+      - pierwsza osoba po BB rozpoczyna preflop.
+    */
+    sbIndex = (dealerIndex + 1) % playersCount;
+    bbIndex = (dealerIndex + 2) % playersCount;
+    firstPlayerIndex = findNextPlayerIndex(bbIndex);
+  }
 
   placeBet(gameState.players[sbIndex], gameState.smallBlind);
   placeBet(gameState.players[bbIndex], gameState.bigBlind);
 
-  gameState.currentPlayerIndex = findNextPlayerIndex(bbIndex);
+  gameState.currentPlayerIndex = firstPlayerIndex;
 
   io.emit('gameState', gameState);
-  io.emit('message', `Nowa ręka! ${gameState.players[sbIndex].username}: SB, ${gameState.players[bbIndex].username}: BB`);
+
+  io.emit(
+    'message',
+    `Nowa ręka! ${gameState.players[sbIndex].username}: SB, ` +
+    `${gameState.players[bbIndex].username}: BB`
+  );
 }
 
 function placeBet(player, amount) {
