@@ -188,10 +188,14 @@ function startNewRound() {
 
 function placeBet(player, amount) {
   const actualAmount = Math.max(0, Math.min(amount, player.chips));
+
   player.chips -= actualAmount;
   player.bet += actualAmount;
   gameState.pot += actualAmount;
-  if (player.chips === 0) player.allIn = true;
+
+  if (player.chips === 0) {
+    player.allIn = true;
+  }
 }
 
 function handlePlayerAction(player, action, amount) {
@@ -205,23 +209,37 @@ function handlePlayerAction(player, action, amount) {
     }
   } else if (action === 'check') {
     if (player.bet < gameState.currentBet) {
-      io.to(player.id).emit('error', 'Nie możesz wykonać Check. Wybierz Call lub Fold.');
+      io.to(player.id).emit(
+        'error',
+        'Nie możesz wykonać Check. Wybierz Call albo Fold.'
+      );
       return;
     }
+
     io.emit('message', `${player.username} wykonał Check`);
   } else if (action === 'call') {
-    const toCall = gameState.currentBet - player.bet;
+    const toCall = Math.max(0, gameState.currentBet - player.bet);
     placeBet(player, toCall);
-    io.emit('message', `${player.username} sprawdził za ${Math.max(0, toCall)}`);
+    io.emit('message', `${player.username} sprawdził za ${toCall}`);
   } else if (action === 'bet' || action === 'raise') {
     const totalBet = Number(amount);
+
     if (!Number.isFinite(totalBet) || totalBet <= gameState.currentBet) {
-      io.to(player.id).emit('error', `Stawka musi być większa niż ${gameState.currentBet}.`);
+      io.to(player.id).emit(
+        'error',
+        `Stawka musi być większa niż ${gameState.currentBet}.`
+      );
       return;
     }
-    placeBet(player, totalBet - player.bet);
-    gameState.currentBet = player.bet;
-    io.emit('message', `${player.username} podbił stawkę do ${player.bet}`);
+
+    const additionalBet = totalBet - player.bet;
+    placeBet(player, additionalBet);
+    gameState.currentBet = Math.max(gameState.currentBet, player.bet);
+
+    io.emit(
+      'message',
+      `${player.username} podbił stawkę do ${player.bet}`
+    );
   } else {
     io.to(player.id).emit('error', 'Nieznana akcja.');
     return;
@@ -231,40 +249,61 @@ function handlePlayerAction(player, action, amount) {
 }
 
 function nextPlayer() {
-  const activePlayers = gameState.players.filter(player => !player.folded && !player.allIn);
+  const activePlayers = gameState.players.filter(
+    player => !player.folded && !player.allIn
+  );
+
+  const playersStillInHand = gameState.players.filter(
+    player => !player.folded
+  );
+
+  // Nikt nie może już wykonać ruchu.
+  // Przykład: jeden gracz ma all-in, drugi sprawdził.
   if (activePlayers.length === 0) {
-    endRound();
+    runOutCommunityCards();
     return;
   }
 
   let nextIndex = (gameState.currentPlayerIndex + 1) % gameState.players.length;
   let loopCount = 0;
-  while ((gameState.players[nextIndex].folded || gameState.players[nextIndex].allIn) && loopCount < gameState.players.length) {
+
+  while (
+    (gameState.players[nextIndex].folded || gameState.players[nextIndex].allIn) &&
+    loopCount < gameState.players.length
+  ) {
     nextIndex = (nextIndex + 1) % gameState.players.length;
     loopCount++;
   }
 
-  const allCalled = gameState.players.every(player => player.folded || player.allIn || player.bet === gameState.currentBet);
-  if (allCalled && nextIndex === getFirstBetterIndex()) nextPhase();
-  else {
-    gameState.currentPlayerIndex = nextIndex;
-    io.emit('gameState', gameState);
-  }
-}
+  const allCalled = gameState.players.every(player =>
+    player.folded ||
+    player.allIn ||
+    player.bet === gameState.currentBet
+  );
 
-function getFirstBetterIndex() {
-  return gameState.phase === 'preflop'
-    ? (gameState.dealerIndex + 3) % gameState.players.length
-    : (gameState.dealerIndex + 1) % gameState.players.length;
+  if (allCalled) {
+    nextPhase();
+    return;
+  }
+
+  gameState.currentPlayerIndex = nextIndex;
+  io.emit('gameState', gameState);
 }
 
 function nextPhase() {
-  gameState.players.forEach(player => { player.bet = 0; });
+  gameState.players.forEach(player => {
+    player.bet = 0;
+  });
+
   gameState.currentBet = 0;
 
   if (gameState.phase === 'preflop') {
     gameState.phase = 'flop';
-    gameState.communityCards.push(gameState.deck.pop(), gameState.deck.pop(), gameState.deck.pop());
+    gameState.communityCards.push(
+      gameState.deck.pop(),
+      gameState.deck.pop(),
+      gameState.deck.pop()
+    );
   } else if (gameState.phase === 'flop') {
     gameState.phase = 'turn';
     gameState.communityCards.push(gameState.deck.pop());
@@ -277,9 +316,49 @@ function nextPhase() {
     return;
   }
 
-  gameState.currentPlayerIndex = getFirstBetterIndex();
+  // Gracze all-in są pomijani. Jeżeli po zmianie fazy
+  // nikt nie może już wykonać ruchu, odkrywamy kolejne karty automatycznie.
+  const playersWhoCanAct = gameState.players.filter(
+    player => !player.folded && !player.allIn
+  );
+
+  if (playersWhoCanAct.length === 0) {
+    runOutCommunityCards();
+    return;
+  }
+
+  gameState.currentPlayerIndex = getFirstActivePlayerIndex();
   io.emit('gameState', gameState);
   io.emit('message', `Faza: ${gameState.phase.toUpperCase()}`);
+}
+
+function getFirstActivePlayerIndex() {
+  for (let offset = 1; offset <= gameState.players.length; offset++) {
+    const index = (gameState.dealerIndex + offset) % gameState.players.length;
+    const player = gameState.players[index];
+
+    if (player && !player.folded && !player.allIn) {
+      return index;
+    }
+  }
+
+  return -1;
+}
+
+function runOutCommunityCards() {
+  // Odkrywamy wszystkie brakujące karty wspólne bez dodatkowej licytacji.
+  while (gameState.communityCards.length < 5) {
+    gameState.communityCards.push(gameState.deck.pop());
+  }
+
+  gameState.phase = 'showdown';
+  gameState.currentPlayerIndex = -1;
+  io.emit('gameState', gameState);
+  io.emit('message', 'Wszyscy pozostali gracze są all-in. Odkrywanie kart...');
+
+  setTimeout(() => {
+    determineWinner();
+  }, 1500);
 }
 
 function determineWinner() {
