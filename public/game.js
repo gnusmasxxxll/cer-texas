@@ -24,6 +24,10 @@ const gameControls = document.getElementById('gameControls');
 const startBtn = document.getElementById('startBtn');
 const messagesEl = document.getElementById('messages');
 
+const gameOverModal = document.getElementById('gameOverModal');
+const gameOverWinner = document.getElementById('gameOverWinner');
+const rankingList = document.getElementById('rankingList');
+
 const seatElements = [
   document.getElementById('seatTop'),
   document.getElementById('seatTopLeft'),
@@ -140,6 +144,10 @@ socket.on('message', (message) => {
 
 socket.on('error', (message) => {
   addMessage(`Błąd: ${message}`);
+});
+
+socket.on('gameOver', (data) => {
+  showGameOver(data);
 });
 
 function getSavedPassword() {
@@ -325,4 +333,25 @@ function escapeHTML(value) {
     .replaceAll('>', '&gt;')
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#039;');
+}
+
+function showGameOver(data) {
+  const winnerName = data.winner
+    ? data.winner.username
+    : 'Brak zwycięzcy';
+
+  gameOverWinner.textContent = `Zwycięzca: ${winnerName}`;
+
+  rankingList.innerHTML = data.ranking.map(player => `
+    <div class="ranking-row">
+      <div class="ranking-place">#${player.place}</div>
+      <div class="ranking-name">${escapeHTML(player.username)}</div>
+      <div class="ranking-chips">${player.chips} pkt</div>
+    </div>
+  `).join('');
+
+  gameControls.classList.add('hidden');
+  startBtn.classList.add('hidden');
+  turnInfo.textContent = 'Gra została zakończona.';
+  gameOverModal.classList.remove('hidden');
 }
