@@ -479,7 +479,6 @@ function endRound() {
       startNewRound();
     }
   }, 3000);
-}
 
 function resetGame() {
   gameState = {
