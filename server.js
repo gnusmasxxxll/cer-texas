@@ -449,7 +449,6 @@ function determineWinner() {
   setTimeout(() => {
     startNewRound();
   }, 3000);
-}
 
 function endRound() {
   const winner = gameState.players.find(player => !player.folded);
