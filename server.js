@@ -388,6 +388,60 @@ function determineWinner() {
     }
   });
 
+function finishHandOrGame() {
+  gameState.phase = 'showdown';
+  gameState.currentPlayerIndex = -1;
+
+  io.emit('gameState', gameState);
+
+  const playersWithPoints = gameState.players.filter(
+    player => player.chips > 0
+  );
+
+  // Jeżeli został maksymalnie jeden gracz z punktami,
+  // kończymy całą grę.
+  if (playersWithPoints.length <= 1) {
+    gameState.gameOver = true;
+    gameState.phase = 'gameover';
+    gameState.pot = 0;
+    gameState.currentBet = 0;
+
+    const ranking = [...gameState.players]
+      .sort((a, b) => b.chips - a.chips)
+      .map((player, index) => ({
+        place: index + 1,
+        username: player.username,
+        chips: player.chips
+      }));
+
+    io.emit('gameOver', {
+      winner: playersWithPoints[0] || null,
+      ranking
+    });
+
+    io.emit('gameState', gameState);
+
+    io.emit(
+      'message',
+      playersWithPoints[0]
+        ? `Koniec gry! Zwycięża ${playersWithPoints[0].username}.`
+        : 'Koniec gry — żaden gracz nie ma już punktów.'
+    );
+
+    return;
+  }
+
+  // Jeżeli gra nadal trwa, przechodzimy do kolejnego rozdania.
+  gameState.dealerIndex =
+    (gameState.dealerIndex + 1) % gameState.players.length;
+
+  setTimeout(() => {
+    if (!gameState.gameOver && gameState.players.length >= 2) {
+      startNewRound();
+    }
+  }, 3000);
+}
+  
   function finishHandOrGame() {
   gameState.phase = 'showdown';
   gameState.currentPlayerIndex = -1;
