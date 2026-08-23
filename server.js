@@ -231,20 +231,48 @@ function handlePlayerAction(player, action, amount) {
   if (action === 'fold') {
     player.folded = true;
     io.emit('message', `${player.username} spasował`);
+
+    // Jeżeli po spasowaniu pozostał tylko jeden aktywny gracz,
+    // nie czekamy na jego kolej. Od razu przyznajemy mu pulę.
+    const remainingPlayers = gameState.players.filter(p => !p.folded);
+    if (remainingPlayers.length === 1) {
+      endRound();
+      return;
+    }
   } else if (action === 'check') {
-    io.emit('message', `${player.username} sprawdził`);
+    // Check jest dozwolony tylko wtedy, gdy gracz nie musi dopłacać.
+    if (player.bet < gameState.currentBet) {
+      io.to(player.id).emit('error', 'Nie możesz wykonać Check. Wybierz Call, Bet/Raise lub Fold.');
+      return;
+    }
+    io.emit('message', `${player.username} wykonał Check`);
   } else if (action === 'call') {
     const toCall = gameState.currentBet - player.bet;
-    placeBet(player, toCall);
-    io.emit('message', `${player.username} sprawdził za ${toCall}`);
+    placeBet(player, Math.max(0, toCall));
+    io.emit('message', `${player.username} sprawdził za ${Math.max(0, toCall)}`);
   } else if (action === 'bet' || action === 'raise') {
-    const totalBet = amount;
+    const totalBet = Number(amount);
+
+    // Stawka musi być liczbą oraz musi podnosić aktualną stawkę.
+    if (!Number.isFinite(totalBet) || totalBet <= gameState.currentBet) {
+      io.to(player.id).emit('error', `Stawka musi być większa niż ${gameState.currentBet}.`);
+      return;
+    }
+
     const added = totalBet - player.bet;
+    if (added <= 0) {
+      io.to(player.id).emit('error', 'Nieprawidłowa kwota stawki.');
+      return;
+    }
+
     placeBet(player, added);
-    gameState.currentBet = totalBet;
-    io.emit('message', `${player.username} postawił ${totalBet}`);
+    gameState.currentBet = player.bet;
+    io.emit('message', `${player.username} podbił stawkę do ${player.bet}`);
+  } else {
+    io.to(player.id).emit('error', 'Nieznana akcja.');
+    return;
   }
-  
+
   nextPlayer();
 }
 
@@ -350,14 +378,29 @@ function determineWinner() {
 
 function endRound() {
   const winner = gameState.players.find(p => !p.folded);
+
   if (winner) {
-    winner.chips += gameState.pot;
-    io.emit('message', `${winner.username} wygrywa ${gameState.pot} punktów!`);
+    const wonPot = gameState.pot;
+    winner.chips += wonPot;
+    io.emit('message', `${winner.username} wygrywa pulę: ${wonPot} punktów!`);
   }
-  
+
+  gameState.phase = 'showdown';
+  gameState.currentPlayerIndex = -1;
+  io.emit('gameState', gameState);
+
+  if (gameState.players.length < 2) {
+    gameState.phase = 'waiting';
+    io.emit('gameState', gameState);
+    return;
+  }
+
   gameState.dealerIndex = (gameState.dealerIndex + 1) % gameState.players.length;
+
   setTimeout(() => {
-    startNewRound();
+    if (gameState.players.length >= 2) {
+      startNewRound();
+    }
   }, 3000);
 }
 
