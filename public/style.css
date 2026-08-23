@@ -218,3 +218,87 @@ button { cursor: pointer; }
 .logout-button:hover {
   background: rgba(168, 58, 58, 0.75);
 }
+.game-over-modal {
+  position: fixed;
+  z-index: 1000;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(5px);
+}
+
+.game-over-box {
+  width: min(460px, 100%);
+  padding: 30px;
+  border: 2px solid #f4cc63;
+  border-radius: 18px;
+  text-align: center;
+  background: linear-gradient(145deg, #17372d, #071710);
+  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.75);
+}
+
+.game-over-symbol {
+  color: #f4cc63;
+  font-size: 3.5rem;
+  line-height: 1;
+}
+
+.game-over-box h2 {
+  margin: 8px 0;
+  color: #f4cc63;
+  font-size: 2rem;
+}
+
+.game-over-box h3 {
+  margin: 24px 0 10px;
+  color: #fff2c6;
+}
+
+.game-over-winner {
+  margin: 0;
+  color: #9af0bd;
+  font-size: 1.1rem;
+  font-weight: bold;
+}
+
+.ranking-list {
+  display: grid;
+  gap: 8px;
+}
+
+.ranking-row {
+  display: grid;
+  grid-template-columns: 45px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 11px;
+  border: 1px solid rgba(244, 204, 99, 0.3);
+  border-radius: 9px;
+  background: rgba(0, 0, 0, 0.3);
+  text-align: left;
+}
+
+.ranking-place {
+  color: #f4cc63;
+  font-size: 1.15rem;
+  font-weight: bold;
+}
+
+.ranking-name {
+  color: #ffffff;
+  font-weight: bold;
+}
+
+.ranking-chips {
+  color: #85dfc0;
+  font-size: 0.9rem;
+}
+
+.game-over-note {
+  margin: 20px 0 0;
+  color: #c7c7c7;
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
