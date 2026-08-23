@@ -37,7 +37,10 @@ function shuffleDeck(deck) {
 }
 
 function getCardValue(card) {
-  return { '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7, '8': 8, '9': 9, '10': 10, J: 11, Q: 12, K: 13, A: 14 }[card.value];
+  return {
+    '2': 2, '3': 3, '4': 4, '5': 5, '6': 6, '7': 7,
+    '8': 8, '9': 9, '10': 10, J: 11, Q: 12, K: 13, A: 14
+  }[card.value];
 }
 
 function evaluateHand(cards) {
@@ -51,7 +54,10 @@ function evaluateHand(cards) {
   );
 
   const counts = {};
-  cardValues.forEach(value => { counts[value] = (counts[value] || 0) + 1; });
+  cardValues.forEach(value => {
+    counts[value] = (counts[value] || 0) + 1;
+  });
+
   const pairs = Object.values(counts).filter(count => count === 2).length;
   const trips = Object.values(counts).some(count => count === 3);
   const quads = Object.values(counts).some(count => count === 4);
@@ -86,12 +92,14 @@ io.on('connection', socket => {
 
   socket.on('login', ({ username, password }) => {
     const user = VALID_USERS.find(item => item.username === username && item.password === password);
+
     if (!user) {
       socket.emit('loginResult', { success: false, error: 'Nieprawidłowe dane' });
       return;
     }
 
     const existingPlayer = gameState.players.find(player => player.username === username);
+
     if (existingPlayer) {
       existingPlayer.id = socket.id;
       socket.emit('loginResult', { success: true, player: existingPlayer });
@@ -119,26 +127,26 @@ io.on('connection', socket => {
       socket.emit('error', 'Gra została zakończona.');
       return;
     }
+
     if (gameState.players.length < 2) {
       socket.emit('error', 'Potrzeba minimum 2 graczy');
       return;
     }
+
     startNewRound();
   });
 
   socket.on('playerAction', ({ action, amount }) => {
     const player = gameState.players.find(item => item.id === socket.id);
-    if (!player || gameState.players[gameState.currentPlayerIndex]?.id !== socket.id || gameState.gameOver) return;
+
+    if (!player || gameState.gameOver) return;
+    if (gameState.players[gameState.currentPlayerIndex]?.id !== socket.id) return;
+
     handlePlayerAction(player, action, amount);
   });
 
-  socket.on('logout', () => {
-    removePlayer(socket.id, true);
-  });
-
-  socket.on('disconnect', () => {
-    removePlayer(socket.id, false);
-  });
+  socket.on('logout', () => removePlayer(socket.id, true));
+  socket.on('disconnect', () => removePlayer(socket.id, false));
 });
 
 function removePlayer(socketId, notify) {
@@ -180,22 +188,20 @@ function startNewRound() {
 
   placeBet(gameState.players[sbIndex], gameState.smallBlind);
   placeBet(gameState.players[bbIndex], gameState.bigBlind);
-  gameState.currentPlayerIndex = (bbIndex + 1) % gameState.players.length;
+
+  gameState.currentPlayerIndex = findNextPlayerIndex(bbIndex);
 
   io.emit('gameState', gameState);
   io.emit('message', `Nowa ręka! ${gameState.players[sbIndex].username}: SB, ${gameState.players[bbIndex].username}: BB`);
 }
 
 function placeBet(player, amount) {
-  const actualAmount = Math.max(0, Math.min(amount, player.chips));
-
+  const actualAmount = Math.max(0, Math.min(Number(amount) || 0, player.chips));
   player.chips -= actualAmount;
   player.bet += actualAmount;
   gameState.pot += actualAmount;
 
-  if (player.chips === 0) {
-    player.allIn = true;
-  }
+  if (player.chips === 0) player.allIn = true;
 }
 
 function handlePlayerAction(player, action, amount) {
@@ -209,37 +215,25 @@ function handlePlayerAction(player, action, amount) {
     }
   } else if (action === 'check') {
     if (player.bet < gameState.currentBet) {
-      io.to(player.id).emit(
-        'error',
-        'Nie możesz wykonać Check. Wybierz Call albo Fold.'
-      );
+      io.to(player.id).emit('error', 'Nie możesz wykonać Check. Wybierz Call albo Fold.');
       return;
     }
-
     io.emit('message', `${player.username} wykonał Check`);
   } else if (action === 'call') {
     const toCall = Math.max(0, gameState.currentBet - player.bet);
     placeBet(player, toCall);
-    io.emit('message', `${player.username} sprawdził za ${toCall}`);
+    io.emit('message', `${player.username} sprawdził za ${Math.min(toCall, player.bet)}`);
   } else if (action === 'bet' || action === 'raise') {
     const totalBet = Number(amount);
 
     if (!Number.isFinite(totalBet) || totalBet <= gameState.currentBet) {
-      io.to(player.id).emit(
-        'error',
-        `Stawka musi być większa niż ${gameState.currentBet}.`
-      );
+      io.to(player.id).emit('error', `Stawka musi być większa niż ${gameState.currentBet}.`);
       return;
     }
 
-    const additionalBet = totalBet - player.bet;
-    placeBet(player, additionalBet);
+    placeBet(player, totalBet - player.bet);
     gameState.currentBet = Math.max(gameState.currentBet, player.bet);
-
-    io.emit(
-      'message',
-      `${player.username} podbił stawkę do ${player.bet}`
-    );
+    io.emit('message', `${player.username} podbił stawkę do ${player.bet}`);
   } else {
     io.to(player.id).emit('error', 'Nieznana akcja.');
     return;
@@ -248,41 +242,43 @@ function handlePlayerAction(player, action, amount) {
   nextPlayer();
 }
 
+function findNextPlayerIndex(fromIndex) {
+  for (let offset = 1; offset <= gameState.players.length; offset++) {
+    const index = (fromIndex + offset) % gameState.players.length;
+    const player = gameState.players[index];
+
+    if (player && !player.folded && !player.allIn) return index;
+  }
+
+  return -1;
+}
+
 function nextPlayer() {
-  const activePlayers = gameState.players.filter(
-    player => !player.folded && !player.allIn
+  const playersStillInHand = gameState.players.filter(player => !player.folded);
+  const playersWhoCanAct = gameState.players.filter(player => !player.folded && !player.allIn);
+
+  if (playersStillInHand.length === 1) {
+    endRound();
+    return;
+  }
+
+  const everyoneMatched = gameState.players.every(player =>
+    player.folded || player.allIn || player.bet === gameState.currentBet
   );
 
-  const playersStillInHand = gameState.players.filter(
-    player => !player.folded
-  );
+  if (everyoneMatched) {
+    nextPhase();
+    return;
+  }
 
-  // Nikt nie może już wykonać ruchu.
-  // Przykład: jeden gracz ma all-in, drugi sprawdził.
-  if (activePlayers.length === 0) {
+  if (playersWhoCanAct.length === 0) {
     runOutCommunityCards();
     return;
   }
 
-  let nextIndex = (gameState.currentPlayerIndex + 1) % gameState.players.length;
-  let loopCount = 0;
-
-  while (
-    (gameState.players[nextIndex].folded || gameState.players[nextIndex].allIn) &&
-    loopCount < gameState.players.length
-  ) {
-    nextIndex = (nextIndex + 1) % gameState.players.length;
-    loopCount++;
-  }
-
-  const allCalled = gameState.players.every(player =>
-    player.folded ||
-    player.allIn ||
-    player.bet === gameState.currentBet
-  );
-
-  if (allCalled) {
-    nextPhase();
+  const nextIndex = findNextPlayerIndex(gameState.currentPlayerIndex);
+  if (nextIndex === -1) {
+    runOutCommunityCards();
     return;
   }
 
@@ -294,16 +290,11 @@ function nextPhase() {
   gameState.players.forEach(player => {
     player.bet = 0;
   });
-
   gameState.currentBet = 0;
 
   if (gameState.phase === 'preflop') {
     gameState.phase = 'flop';
-    gameState.communityCards.push(
-      gameState.deck.pop(),
-      gameState.deck.pop(),
-      gameState.deck.pop()
-    );
+    gameState.communityCards.push(gameState.deck.pop(), gameState.deck.pop(), gameState.deck.pop());
   } else if (gameState.phase === 'flop') {
     gameState.phase = 'turn';
     gameState.communityCards.push(gameState.deck.pop());
@@ -316,37 +307,19 @@ function nextPhase() {
     return;
   }
 
-  // Gracze all-in są pomijani. Jeżeli po zmianie fazy
-  // nikt nie może już wykonać ruchu, odkrywamy kolejne karty automatycznie.
-  const playersWhoCanAct = gameState.players.filter(
-    player => !player.folded && !player.allIn
-  );
+  const playersWhoCanAct = gameState.players.filter(player => !player.folded && !player.allIn);
 
   if (playersWhoCanAct.length === 0) {
     runOutCommunityCards();
     return;
   }
 
-  gameState.currentPlayerIndex = getFirstActivePlayerIndex();
+  gameState.currentPlayerIndex = findNextPlayerIndex(gameState.dealerIndex);
   io.emit('gameState', gameState);
   io.emit('message', `Faza: ${gameState.phase.toUpperCase()}`);
 }
 
-function getFirstActivePlayerIndex() {
-  for (let offset = 1; offset <= gameState.players.length; offset++) {
-    const index = (gameState.dealerIndex + offset) % gameState.players.length;
-    const player = gameState.players[index];
-
-    if (player && !player.folded && !player.allIn) {
-      return index;
-    }
-  }
-
-  return -1;
-}
-
 function runOutCommunityCards() {
-  // Odkrywamy wszystkie brakujące karty wspólne bez dodatkowej licytacji.
   while (gameState.communityCards.length < 5) {
     gameState.communityCards.push(gameState.deck.pop());
   }
@@ -356,9 +329,7 @@ function runOutCommunityCards() {
   io.emit('gameState', gameState);
   io.emit('message', 'Wszyscy pozostali gracze są all-in. Odkrywanie kart...');
 
-  setTimeout(() => {
-    determineWinner();
-  }, 1500);
+  setTimeout(() => determineWinner(), 1200);
 }
 
 function determineWinner() {
@@ -374,12 +345,15 @@ function determineWinner() {
 
   let bestScore = -1;
   let winners = [];
+
   activePlayers.forEach(player => {
     const score = evaluateHand([...player.cards, ...gameState.communityCards]);
     if (score > bestScore) {
       bestScore = score;
       winners = [player];
-    } else if (score === bestScore) winners.push(player);
+    } else if (score === bestScore) {
+      winners.push(player);
+    }
   });
 
   const winAmount = Math.floor(gameState.pot / winners.length);
@@ -406,7 +380,11 @@ function finishHandOrGame() {
 
     const ranking = [...gameState.players]
       .sort((a, b) => b.chips - a.chips)
-      .map((player, index) => ({ place: index + 1, username: player.username, chips: player.chips }));
+      .map((player, index) => ({
+        place: index + 1,
+        username: player.username,
+        chips: player.chips
+      }));
 
     io.emit('gameOver', { winner: playersWithPoints[0] || null, ranking });
     io.emit('gameState', gameState);
@@ -414,6 +392,7 @@ function finishHandOrGame() {
   }
 
   gameState.dealerIndex = (gameState.dealerIndex + 1) % gameState.players.length;
+
   setTimeout(() => {
     if (!gameState.gameOver && gameState.players.length >= 2) startNewRound();
   }, 3000);
@@ -421,10 +400,12 @@ function finishHandOrGame() {
 
 function endRound() {
   const winner = gameState.players.find(player => !player.folded);
+
   if (winner) {
     winner.chips += gameState.pot;
     io.emit('message', `${winner.username} wygrywa pulę: ${gameState.pot} punktów!`);
   }
+
   finishHandOrGame();
 }
 
@@ -442,6 +423,7 @@ function resetGame() {
     smallBlind: 10,
     bigBlind: 20
   };
+
   io.emit('gameState', gameState);
 }
 
