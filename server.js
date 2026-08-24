@@ -439,16 +439,18 @@ function handlePlayerAction(player, action, amount) {
       endRound();
       return;
     }
-  } else if (action === 'check') {
-    if (player.bet < gameState.currentBet) {
-      io.to(player.id).emit('error', 'Nie możesz wykonać Check. Wybierz Call albo Fold.');
-      return;
-    }
-    io.emit('message', `${player.username} wykonał Check`);
-  } else if (action === 'call') {
-  const toCall = Math.max(
-    0,
-    gameState.currentBet - player.bet
+} else if (action === 'check') {
+  if (player.bet < gameState.currentBet) {
+    io.to(player.id).emit(
+      'error',
+      'Nie możesz wykonać Check. Wybierz Call albo Fold.'
+    );
+    return;
+  }
+
+  io.emit(
+    'message',
+    `${player.username} wykonał Check`
   );
 
 placeBet(player, toCall);
@@ -499,54 +501,54 @@ function getNextAbleToActIndex(fromIndex) {
 }
 
 function advanceAfterAction() {
-  const playersStillInHand = gameState.players.filter(
+  const activePlayers = gameState.players.filter(
     player => !player.folded
   );
 
-  if (playersStillInHand.length === 1) {
+  if (activePlayers.length === 1) {
     endRound();
     return;
   }
 
-  const playersWhoCanAct = playersStillInHand.filter(
+  const ableToAct = activePlayers.filter(
     player => !player.allIn
   );
 
   /*
-    Jeżeli nikt nie może już podejmować decyzji,
-    odkrywamy brakujące karty i przechodzimy do showdownu.
+    Nikt nie może już wykonać ruchu.
+    Odkrywamy wszystkie brakujące karty.
   */
-  if (playersWhoCanAct.length === 0) {
+  if (ableToAct.length === 0) {
     runOutCommunityCards();
     return;
   }
 
   /*
-    Akcja jest zakończona dopiero, gdy każdy gracz,
-    który nie jest all-in, wyrównał aktualną stawkę.
+    Jeżeli pozostali gracze, którzy mogą działać,
+    wyrównali stawkę, kończymy licytację.
   */
-  const allAblePlayersMatched = playersWhoCanAct.every(
-    player => player.bet === gameState.currentBet
+  const allAblePlayersMatched = ableToAct.every(
+    player => player.bet >= gameState.currentBet
   );
 
   if (allAblePlayersMatched) {
-    /*
-      Jeżeli co najmniej jeden gracz jest all-in, a drugi
-      wyrównał zakład, nie ma dalszej licytacji.
-    */
-    const hasAllInPlayer = playersStillInHand.some(
+    const anyAllIn = activePlayers.some(
       player => player.allIn
     );
 
-    if (hasAllInPlayer) {
+    if (anyAllIn) {
       runOutCommunityCards();
-      return;
+    } else {
+      nextPhase();
     }
 
-    nextPhase();
     return;
   }
 
+  /*
+    Szukamy następnego gracza, który nie spasował
+    i nie jest all-in.
+  */
   const nextIndex = getNextAbleToActIndex(
     gameState.currentPlayerIndex
   );
@@ -582,16 +584,30 @@ function nextPhase() {
     gameState.phase = 'river';
     gameState.communityCards.push(gameState.deck.pop());
   } else if (gameState.phase === 'river') {
-    /*
-      River został rozegrany.
-      Nie ustawiamy tutaj osobnego oczekiwania na showdown.
-      Od razu wyliczamy zwycięzcę i rozliczamy pulę.
-    */
     determineWinner();
     return;
   }
 
-  const firstIndex = getNextAbleToActIndex(gameState.dealerIndex);
+  const activePlayers = gameState.players.filter(
+    player => !player.folded
+  );
+
+  const ableToAct = activePlayers.filter(
+    player => !player.allIn
+  );
+
+  if (ableToAct.length === 0) {
+    runOutCommunityCards();
+    return;
+  }
+
+  /*
+    Po flopie, turnie i riverze zaczyna gracz
+    znajdujący się pierwszy za dealerem.
+  */
+  const firstIndex = getNextAbleToActIndex(
+    gameState.dealerIndex
+  );
 
   if (firstIndex === -1) {
     runOutCommunityCards();
