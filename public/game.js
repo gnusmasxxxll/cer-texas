@@ -169,7 +169,7 @@ socket.on('gameRestarted', () => {
   potInfo.textContent = 'PULA: 0';
   turnInfo.textContent = 'Nowa gra gotowa. Kliknij Rozpocznij rozdanie.';
   messagesEl.innerHTML = '';
-
+  showdownPlayers = null;
   addMessage('Nowa gra rozpoczęta. Każdy gracz otrzymał 1000 punktów.');
 });
 
