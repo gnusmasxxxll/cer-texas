@@ -268,19 +268,6 @@ function getNextAbleToActIndex(fromIndex) {
     const index = (fromIndex + offset) % count;
     const player = gameState.players[index];
 
-    if (player && !player.folded && !player.allIn) return index;
-  }
-
-  return -1;
-}
-
-function getNextAbleToActIndex(fromIndex) {
-  const count = gameState.players.length;
-
-  for (let offset = 1; offset <= count; offset++) {
-    const index = (fromIndex + offset) % count;
-    const player = gameState.players[index];
-
     if (player && !player.folded && !player.allIn) {
       return index;
     }
@@ -290,7 +277,9 @@ function getNextAbleToActIndex(fromIndex) {
 }
 
 function advanceAfterAction() {
-  const playersStillInHand = gameState.players.filter(player => !player.folded);
+  const playersStillInHand = gameState.players.filter(
+    player => !player.folded
+  );
 
   if (playersStillInHand.length === 1) {
     endRound();
@@ -300,25 +289,25 @@ function advanceAfterAction() {
   const currentIndex = gameState.currentPlayerIndex;
   const nextIndex = getNextAbleToActIndex(currentIndex);
 
-  // Wszyscy aktywni gracze wyrównali zakład.
-  const everyoneMatched = gameState.players.every(player =>
-    player.folded || player.allIn || player.bet === gameState.currentBet
+  const everyoneMatched = gameState.players.every(
+    player =>
+      player.folded ||
+      player.allIn ||
+      player.bet === gameState.currentBet
   );
 
   /*
-    Faza może skończyć się dopiero, gdy:
-    1. wszyscy wyrównali stawkę,
-    2. ruch wrócił do pierwszego gracza tej fazy.
-
-    Bez second condition po flopie pierwszy Check od razu kończył fazę,
-    przez co drugi gracz grał sam do końca rozdania.
+    Faza kończy się wyłącznie gdy wszyscy wyrównali zakład
+    ORAZ ruch wrócił do osoby, która zaczynała tę fazę.
   */
-  if (everyoneMatched && nextIndex === gameState.firstPlayerThisStreet) {
+  if (
+    everyoneMatched &&
+    nextIndex === gameState.firstPlayerThisStreet
+  ) {
     nextPhase();
     return;
   }
 
-  // Gdy wszyscy aktywni gracze są all-in, nie ma dalszej licytacji.
   if (nextIndex === -1) {
     runOutCommunityCards();
     return;
@@ -332,7 +321,8 @@ function nextPhase() {
   gameState.players.forEach(player => {
     player.bet = 0;
   });
-   gameState.currentBet = 0;
+
+  gameState.currentBet = 0;
 
   if (gameState.phase === 'preflop') {
     gameState.phase = 'flop';
@@ -353,13 +343,17 @@ function nextPhase() {
     return;
   }
 
-const firstIndex = getNextAbleToActIndex(gameState.dealerIndex);
+  const firstIndex = getNextAbleToActIndex(gameState.dealerIndex);
 
- if (firstIndex === -1) {
+  if (firstIndex === -1) {
     runOutCommunityCards();
     return;
+  }
 
-  // Zapamiętujemy, kto rozpoczyna tę konkretną rundę licytacji.
+  /*
+    Zapamiętujemy osobę, która rozpoczyna właśnie rozpoczętą
+    rundę licytacji: flop, turn albo river.
+  */
   gameState.firstPlayerThisStreet = firstIndex;
   gameState.currentPlayerIndex = firstIndex;
 
