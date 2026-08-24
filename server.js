@@ -478,7 +478,7 @@ function finishHandOrGame() {
     if (!gameState.gameOver && gameState.players.length >= 2) {
       startNewRound();
     }
-  }, 7000);
+  }, 10000);
 }
 
 function endRound() {
