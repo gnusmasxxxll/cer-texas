@@ -283,25 +283,27 @@ function createSeatHTML(player, isMine, state) {
         ? 'TWOJA KOLEJ'
         : '';
 
-  /*
-    Podczas normalnej gry przeciwnik ma zakryte karty.
-    Podczas showdownResult serwer przesyła przeciwnikowi prawdziwe karty,
-    więc tutaj pokażemy ich wartości.
-  */
   let opponentCards = '';
 
-  if (
-  player.showCards === true &&
-  player.cards &&
-  player.cards.length === 2
-) {
-  opponentCards = `
-    <div class="player-hole-cards shown-cards">
-      ${createMiniCardHTML(player.cards[0])}
-      ${createMiniCardHTML(player.cards[1])}
-    </div>
-  `;
-} else {
+  /*
+    Własne karty są renderowane niżej w panelu „Twoje karty”.
+    Przy kartach przeciwnika:
+    - normalna gra: pokazuj tył kart,
+    - showdown: pokaż dwie odkryte karty.
+  */
+  if (!isMine) {
+    if (
+      player.showCards === true &&
+      player.cards &&
+      player.cards.length === 2
+    ) {
+      opponentCards = `
+        <div class="player-hole-cards shown-cards">
+          ${createMiniCardHTML(player.cards[0])}
+          ${createMiniCardHTML(player.cards[1])}
+        </div>
+      `;
+    } else {
       opponentCards = `
         <div class="player-hole-cards">
           <div class="mini-card"></div>
