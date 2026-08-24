@@ -85,7 +85,6 @@ if (restartGameBtn) {
   });
 }
 
-
 socket.on('connect', () => {
   /*
     Po odświeżeniu strony odczytujemy zapisane dane
@@ -154,14 +153,21 @@ socket.on('error', (message) => {
   addMessage(`Błąd: ${message}`);
 });
 
-socket.on('gameOver', (data) => {
+socket.on('gameOver', data => {
   showGameOver(data);
 });
 
 socket.on('gameRestarted', () => {
-  gameOverModal.classList.add('hidden');
+  restartGameBtn.classList.add('hidden');
+  startBtn.classList.remove('hidden');
+  gameControls.classList.add('hidden');
+
+  phaseInfo.textContent = 'OCZEKIWANIE';
+  potInfo.textContent = 'PULA: 0';
+  turnInfo.textContent = 'Nowa gra gotowa. Kliknij Rozpocznij rozdanie.';
   messagesEl.innerHTML = '';
-  addMessage('Rozpoczęto nową grę. Każdy gracz ma ponownie 1000 punktów.');
+
+  addMessage('Nowa gra rozpoczęta. Każdy gracz otrzymał 1000 punktów.');
 });
 
 function getSavedPassword() {
@@ -354,18 +360,20 @@ function showGameOver(data) {
     ? data.winner.username
     : 'Brak zwycięzcy';
 
-  gameOverWinner.textContent = `Zwycięzca: ${winnerName}`;
-
-  rankingList.innerHTML = data.ranking.map(player => `
-    <div class="ranking-row">
-      <div class="ranking-place">#${player.place}</div>
-      <div class="ranking-name">${escapeHTML(player.username)}</div>
-      <div class="ranking-chips">${player.chips} pkt</div>
-    </div>
-  `).join('');
-
-  gameControls.classList.add('hidden');
+  restartGameBtn.classList.remove('hidden');
   startBtn.classList.add('hidden');
-  turnInfo.textContent = 'Gra została zakończona.';
-  gameOverModal.classList.remove('hidden');
+  gameControls.classList.add('hidden');
+
+  phaseInfo.textContent = 'KONIEC GRY';
+  turnInfo.textContent = `Zwycięzca: ${winnerName}`;
+
+  addMessage(`Koniec gry! Zwycięża ${winnerName}.`);
+
+  if (data.ranking) {
+    data.ranking.forEach(player => {
+      addMessage(
+        `#${player.place} ${player.username}: ${player.chips} punktów`
+      );
+    });
+  }
 }
