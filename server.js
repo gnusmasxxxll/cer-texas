@@ -44,31 +44,201 @@ function getCardValue(card) {
 }
 
 function evaluateHand(cards) {
-  const cardValues = cards.map(getCardValue).sort((a, b) => b - a);
-  const cardSuits = cards.map(card => card.suit);
-  const isFlush = cardSuits.length === 5 && cardSuits.every(suit => suit === cardSuits[0]);
-  const uniqueValues = [...new Set(cardValues)];
-  const isStraight = uniqueValues.length === 5 && (
-    cardValues[0] - cardValues[4] === 4 ||
-    (cardValues[0] === 14 && cardValues[1] === 5 && cardValues[2] === 4 && cardValues[3] === 3 && cardValues[4] === 2)
-  );
+  /*
+    Texas Hold'em: wybieramy najlepszy układ 5 kart
+    ze wszystkich 7 kart: 2 własne + 5 wspólnych.
+  */
+  const combinations = getCombinations(cards, 5);
+
+  let bestHand = null;
+
+  combinations.forEach(fiveCards => {
+    const evaluated = evaluateFiveCards(fiveCards);
+
+    if (!bestHand || compareHands(evaluated, bestHand) > 0) {
+      bestHand = evaluated;
+    }
+  });
+
+  return bestHand;
+}
+
+function getCombinations(items, size) {
+  const result = [];
+
+  function build(startIndex, combination) {
+    if (combination.length === size) {
+      result.push([...combination]);
+      return;
+    }
+
+    for (let i = startIndex; i < items.length; i++) {
+      combination.push(items[i]);
+      build(i + 1, combination);
+      combination.pop();
+    }
+  }
+
+  build(0, []);
+  return result;
+}
+
+function evaluateFiveCards(cards) {
+  const values = cards
+    .map(getCardValue)
+    .sort((a, b) => b - a);
+
+  const suits = cards.map(card => card.suit);
 
   const counts = {};
-  cardValues.forEach(value => { counts[value] = (counts[value] || 0) + 1; });
 
-  const pairs = Object.values(counts).filter(count => count === 2).length;
-  const trips = Object.values(counts).some(count => count === 3);
-  const quads = Object.values(counts).some(count => count === 4);
+  values.forEach(value => {
+    counts[value] = (counts[value] || 0) + 1;
+  });
 
-  if (isFlush && isStraight) return 800 + cardValues[0];
-  if (quads) return 700 + Number(Object.keys(counts).find(key => counts[key] === 4));
-  if (trips && pairs >= 1) return 600 + Number(Object.keys(counts).find(key => counts[key] === 3));
-  if (isFlush) return 500 + cardValues[0];
-  if (isStraight) return 400 + cardValues[0];
-  if (trips) return 300 + Number(Object.keys(counts).find(key => counts[key] === 3));
-  if (pairs === 2) return 200 + Number(Object.keys(counts).find(key => counts[key] === 2));
-  if (pairs === 1) return 100 + Number(Object.keys(counts).find(key => counts[key] === 2));
-  return cardValues[0] || 0;
+  const valueGroups = Object.entries(counts)
+    .map(([value, count]) => ({
+      value: Number(value),
+      count
+    }))
+    .sort((a, b) => {
+      if (b.count !== a.count) {
+        return b.count - a.count;
+      }
+
+      return b.value - a.value;
+    });
+
+  const isFlush = suits.every(suit => suit === suits[0]);
+  const straightHighCard = getStraightHighCard(values);
+
+  /*
+    Wartości kategorii:
+    8 = poker królewski / straight flush
+    7 = kareta
+    6 = full house
+    5 = kolor
+    4 = strit
+    3 = trójka
+    2 = dwie pary
+    1 = jedna para
+    0 = wysoka karta
+
+    Zwracamy tablicę. Pierwsza wartość oznacza rodzaj układu,
+    kolejne wartości są porównywane jako kickery.
+  */
+
+  if (isFlush && straightHighCard) {
+    return [8, straightHighCard];
+  }
+
+  if (valueGroups[0].count === 4) {
+    return [
+      7,
+      valueGroups[0].value,
+      valueGroups[1].value
+    ];
+  }
+
+  if (
+    valueGroups[0].count === 3 &&
+    valueGroups[1].count === 2
+  ) {
+    return [
+      6,
+      valueGroups[0].value,
+      valueGroups[1].value
+    ];
+  }
+
+  if (isFlush) {
+    return [5, ...values];
+  }
+
+  if (straightHighCard) {
+    return [4, straightHighCard];
+  }
+
+  if (valueGroups[0].count === 3) {
+    return [
+      3,
+      valueGroups[0].value,
+      valueGroups[1].value,
+      valueGroups[2].value
+    ];
+  }
+
+  if (
+    valueGroups[0].count === 2 &&
+    valueGroups[1].count === 2
+  ) {
+    return [
+      2,
+      valueGroups[0].value,
+      valueGroups[1].value,
+      valueGroups[2].value
+    ];
+  }
+
+  if (valueGroups[0].count === 2) {
+    return [
+      1,
+      valueGroups[0].value,
+      valueGroups[1].value,
+      valueGroups[2].value,
+      valueGroups[3].value
+    ];
+  }
+
+  return [0, ...values];
+}
+
+function getStraightHighCard(values) {
+  const uniqueDescending = [...new Set(values)]
+    .sort((a, b) => b - a);
+
+  /*
+    As może być niską kartą w stricie A-2-3-4-5.
+  */
+  if (
+    uniqueDescending.includes(14) &&
+    uniqueDescending.includes(5) &&
+    uniqueDescending.includes(4) &&
+    uniqueDescending.includes(3) &&
+    uniqueDescending.includes(2)
+  ) {
+    return 5;
+  }
+
+  for (let i = 0; i <= uniqueDescending.length - 5; i++) {
+    const first = uniqueDescending[i];
+    const fifth = uniqueDescending[i + 4];
+
+    if (first - fifth === 4) {
+      return first;
+    }
+  }
+
+  return null;
+}
+
+function compareHands(handA, handB) {
+  const length = Math.max(handA.length, handB.length);
+
+  for (let i = 0; i < length; i++) {
+    const valueA = handA[i] || 0;
+    const valueB = handB[i] || 0;
+
+    if (valueA > valueB) {
+      return 1;
+    }
+
+    if (valueA < valueB) {
+      return -1;
+    }
+  }
+
+  return 0;
 }
 
 let gameState = {
@@ -473,8 +643,8 @@ function determineWinner() {
     return;
   }
 
-  let bestScore = -1;
-  let winners = [];
+let bestScore = null;
+let winners = [];
 
   if (activePlayers.length === 1) {
     winners = [activePlayers[0]];
@@ -485,12 +655,12 @@ function determineWinner() {
         ...gameState.communityCards
       ]);
 
-      if (score > bestScore) {
-        bestScore = score;
-        winners = [player];
-      } else if (score === bestScore) {
-        winners.push(player);
-      }
+if (!bestScore || compareHands(score, bestScore) > 0) {
+  bestScore = score;
+  winners = [player];
+} else if (compareHands(score, bestScore) === 0) {
+  winners.push(player);
+}
     });
   }
 
