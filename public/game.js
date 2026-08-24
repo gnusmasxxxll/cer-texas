@@ -290,15 +290,18 @@ function createSeatHTML(player, isMine, state) {
   */
   let opponentCards = '';
 
-  if (!isMine) {
-    if (player.cards && player.cards.length === 2) {
-      opponentCards = `
-        <div class="player-hole-cards shown-cards">
-          ${createMiniCardHTML(player.cards[0])}
-          ${createMiniCardHTML(player.cards[1])}
-        </div>
-      `;
-    } else {
+  if (
+  player.showCards === true &&
+  player.cards &&
+  player.cards.length === 2
+) {
+  opponentCards = `
+    <div class="player-hole-cards shown-cards">
+      ${createMiniCardHTML(player.cards[0])}
+      ${createMiniCardHTML(player.cards[1])}
+    </div>
+  `;
+} else {
       opponentCards = `
         <div class="player-hole-cards">
           <div class="mini-card"></div>
