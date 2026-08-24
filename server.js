@@ -495,37 +495,6 @@ function determineWinner() {
 
   finishHandOrGame();
 }
-  // dalsza część obecnej funkcji:
-  // bestScore, winners, evaluateHand itd.
-
-  let bestScore = -1;
-  let winners = [];
-
-  activePlayers.forEach(player => {
-    const score = evaluateHand([
-      ...player.cards,
-      ...gameState.communityCards
-    ]);
-
-    if (score > bestScore) {
-      bestScore = score;
-      winners = [player];
-    } else if (score === bestScore) {
-      winners.push(player);
-    }
-  });
-
-  const wonPot = gameState.pot;
-  const winAmount = Math.floor(wonPot / winners.length);
-  gameState.pot = 0;
-
-  winners.forEach(winner => {
-    winner.chips += winAmount;
-    io.emit('message', `${winner.username} wygrywa ${winAmount} punktów!`);
-  });
-
-  finishHandOrGame();
-}
 
 function finishHandOrGame() {
   gameState.phase = 'showdown';
