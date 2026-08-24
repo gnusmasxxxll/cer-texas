@@ -28,6 +28,8 @@ const gameOverModal = document.getElementById('gameOverModal');
 const gameOverWinner = document.getElementById('gameOverWinner');
 const rankingList = document.getElementById('rankingList');
 
+const restartGameBtn = document.getElementById('restartGameBtn');
+
 const seatElements = [
   document.getElementById('seatTop'),
   document.getElementById('seatTopLeft'),
@@ -77,6 +79,11 @@ logoutBtn.addEventListener('click', () => {
   passwordInput.value = '';
   loginMessage.textContent = 'Wylogowano pomyślnie.';
 });
+
+restartGameBtn.addEventListener('click', () => {
+  socket.emit('restartGame');
+});
+
 
 socket.on('connect', () => {
   /*
@@ -148,6 +155,12 @@ socket.on('error', (message) => {
 
 socket.on('gameOver', (data) => {
   showGameOver(data);
+});
+
+socket.on('gameRestarted', () => {
+  gameOverModal.classList.add('hidden');
+  messagesEl.innerHTML = '';
+  addMessage('Rozpoczęto nową grę. Każdy gracz ma ponownie 1000 punktów.');
 });
 
 function getSavedPassword() {
