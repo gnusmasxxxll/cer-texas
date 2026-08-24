@@ -1,6 +1,7 @@
 const socket = io();
 let currentPlayer = null;
 let isManualLogout = false;
+let showdownPlayers = null;
 
 const loginScreen = document.getElementById('loginScreen');
 const gameScreen = document.getElementById('gameScreen');
@@ -172,6 +173,11 @@ socket.on('gameRestarted', () => {
   addMessage('Nowa gra rozpoczęta. Każdy gracz otrzymał 1000 punktów.');
 });
 
+socket.on('showdownResult', data => {
+  showdownPlayers = data.players;
+  renderShowdownCards(data.players);
+});
+
 function getSavedPassword() {
   try {
     const savedLogin = JSON.parse(localStorage.getItem(STORAGE_KEY));
@@ -257,7 +263,10 @@ function renderGame(state) {
 
 function createSeatHTML(player, isMine, state) {
   const activePlayer = state.players[state.currentPlayerIndex];
-  const isActive = activePlayer?.username === player.username;
+
+  const isActive =
+    activePlayer &&
+    activePlayer.username === player.username;
 
   const classes = [
     'player-seat',
@@ -274,17 +283,19 @@ function createSeatHTML(player, isMine, state) {
         ? 'TWOJA KOLEJ'
         : '';
 
+  /*
+    Podczas normalnej gry przeciwnik ma zakryte karty.
+    Podczas showdownResult serwer przesyła przeciwnikowi prawdziwe karty,
+    więc tutaj pokażemy ich wartości.
+  */
   let opponentCards = '';
 
   if (!isMine) {
-    if (player.showCards && player.cards && player.cards.length === 2) {
-      const firstCard = createMiniCardHTML(player.cards[0]);
-      const secondCard = createMiniCardHTML(player.cards[1]);
-
+    if (player.cards && player.cards.length === 2) {
       opponentCards = `
         <div class="player-hole-cards shown-cards">
-          ${firstCard}
-          ${secondCard}
+          ${createMiniCardHTML(player.cards[0])}
+          ${createMiniCardHTML(player.cards[1])}
         </div>
       `;
     } else {
@@ -417,4 +428,33 @@ function showGameOver(data) {
       );
     });
   }
+}
+function renderShowdownCards(players) {
+  const me = players.find(player =>
+    player.username === currentPlayer?.username
+  );
+
+  const opponents = players.filter(player =>
+    player.username !== currentPlayer?.username
+  );
+
+  // Odśwież karty własne, jeśli serwer je wysłał.
+  if (me && me.cards && me.cards.length === 2) {
+    myCardsEl.innerHTML = me.cards.map(createCardHTML).join('');
+  }
+
+  seatElements.forEach((seatElement, index) => {
+    const opponent = opponents[index];
+
+    if (!opponent) return;
+
+    seatElement.innerHTML = createSeatHTML(
+      opponent,
+      false,
+      {
+        players,
+        currentPlayerIndex: -1
+      }
+    );
+  });
 }
