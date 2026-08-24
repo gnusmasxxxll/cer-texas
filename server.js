@@ -433,50 +433,71 @@ function placeBet(player, amount) {
 function handlePlayerAction(player, action, amount) {
   if (action === 'fold') {
     player.folded = true;
-    io.emit('message', `${player.username} spasował`);
+
+    io.emit('message', `${player.username} spasował.`);
 
     if (gameState.players.filter(item => !item.folded).length === 1) {
       endRound();
       return;
     }
-} else if (action === 'check') {
-  if (player.bet < gameState.currentBet) {
-    io.to(player.id).emit(
-      'error',
-      'Nie możesz wykonać Check. Wybierz Call albo Fold.'
+  } else if (action === 'check') {
+    if (player.bet < gameState.currentBet) {
+      io.to(player.id).emit(
+        'error',
+        'Nie możesz wykonać Check. Wybierz Sprawdź albo Pasuję.'
+      );
+      return;
+    }
+
+    io.emit('message', `${player.username} wykonał Check.`);
+  } else if (action === 'call') {
+    const toCall = Math.max(
+      0,
+      gameState.currentBet - player.bet
     );
-    return;
-  }
 
-  io.emit(
-    'message',
-    `${player.username} wykonał Check`
-  );
+    placeBet(player, toCall);
 
-placeBet(player, toCall);
+    io.emit(
+      'message',
+      `${player.username} sprawdził za ${toCall} punktów.`
+    );
 
-io.emit(
-  'message',
-  `${player.username} sprawdził za ${toCall} punktów.`
-);
-
-if (player.allIn) {
-  io.emit(
-    'message',
-    `${player.username} jest all-in.`
-  );
-}
+    if (player.allIn) {
+      io.emit('message', `${player.username} jest all-in.`);
+    }
   } else if (action === 'bet' || action === 'raise') {
     const totalBet = Number(amount);
 
     if (!Number.isFinite(totalBet) || totalBet <= gameState.currentBet) {
-      io.to(player.id).emit('error', `Stawka musi być większa niż ${gameState.currentBet}.`);
+      io.to(player.id).emit(
+        'error',
+        `Stawka musi być większa niż ${gameState.currentBet}.`
+      );
       return;
     }
 
-    placeBet(player, totalBet - player.bet);
-    gameState.currentBet = Math.max(gameState.currentBet, player.bet);
-    io.emit('message', `${player.username} podbił stawkę do ${player.bet}`);
+    /*
+      Kwota z formularza oznacza łączną stawkę gracza
+      w danej rundzie licytacji, a nie dodatkową wpłatę.
+    */
+    const amountToAdd = totalBet - player.bet;
+
+    placeBet(player, amountToAdd);
+
+    gameState.currentBet = Math.max(
+      gameState.currentBet,
+      player.bet
+    );
+
+    io.emit(
+      'message',
+      `${player.username} podbił stawkę do ${player.bet}.`
+    );
+
+    if (player.allIn) {
+      io.emit('message', `${player.username} jest all-in.`);
+    }
   } else {
     io.to(player.id).emit('error', 'Nieznana akcja.');
     return;
