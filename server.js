@@ -54,9 +54,7 @@ function evaluateHand(cards) {
   );
 
   const counts = {};
-  cardValues.forEach(value => {
-    counts[value] = (counts[value] || 0) + 1;
-  });
+  cardValues.forEach(value => { counts[value] = (counts[value] || 0) + 1; });
 
   const pairs = Object.values(counts).filter(count => count === 2).length;
   const trips = Object.values(counts).some(count => count === 3);
@@ -88,8 +86,6 @@ let gameState = {
 };
 
 io.on('connection', socket => {
-  console.log('Gracz połączony:', socket.id);
-
   socket.on('login', ({ username, password }) => {
     const user = VALID_USERS.find(item => item.username === username && item.password === password);
 
@@ -157,20 +153,24 @@ function removePlayer(socketId, notify) {
   if (notify) io.emit('message', `${player.username} wylogował się.`);
 
   if (gameState.players.length < 2) resetGame();
-  else io.emit('gameState', gameState);
+  else {
+    gameState.dealerIndex %= gameState.players.length;
+    gameState.currentPlayerIndex %= gameState.players.length;
+    io.emit('gameState', gameState);
+  }
 }
 
 function startNewRound() {
   if (gameState.gameOver) return;
 
-  const playersWithPoints = gameState.players.filter(
-    player => player.chips > 0
-  );
-
+  const playersWithPoints = gameState.players.filter(player => player.chips > 0);
   if (playersWithPoints.length < 2) {
     finishHandOrGame();
     return;
   }
+
+  const count = gameState.players.length;
+  gameState.dealerIndex = ((gameState.dealerIndex % count) + count) % count;
 
   gameState.deck = shuffleDeck(createDeck());
   gameState.communityCards = [];
@@ -179,55 +179,36 @@ function startNewRound() {
   gameState.phase = 'preflop';
 
   gameState.players.forEach(player => {
-    player.cards = player.chips > 0
-      ? [gameState.deck.pop(), gameState.deck.pop()]
-      : [];
-
+    player.cards = [gameState.deck.pop(), gameState.deck.pop()];
     player.bet = 0;
-    player.folded = player.chips <= 0;
+    player.folded = false;
     player.allIn = false;
   });
 
-  const playersCount = gameState.players.length;
-  const dealerIndex = gameState.dealerIndex % playersCount;
-
-  let sbIndex;
-  let bbIndex;
+  let smallBlindIndex;
+  let bigBlindIndex;
   let firstPlayerIndex;
 
-  if (playersCount === 2) {
-    /*
-      Heads-up:
-      - dealer wpłaca SB,
-      - drugi gracz wpłaca BB,
-      - dealer rozpoczyna preflop.
-    */
-    sbIndex = dealerIndex;
-    bbIndex = (dealerIndex + 1) % playersCount;
-    firstPlayerIndex = dealerIndex;
+  if (count === 2) {
+    // Heads-up: dealer = small blind i zaczyna preflop.
+    smallBlindIndex = gameState.dealerIndex;
+    bigBlindIndex = (gameState.dealerIndex + 1) % count;
+    firstPlayerIndex = smallBlindIndex;
   } else {
-    /*
-      Od 3 do 6 graczy:
-      - SB jest po lewej od dealera,
-      - BB jest następny,
-      - pierwsza osoba po BB rozpoczyna preflop.
-    */
-    sbIndex = (dealerIndex + 1) % playersCount;
-    bbIndex = (dealerIndex + 2) % playersCount;
-    firstPlayerIndex = findNextPlayerIndex(bbIndex);
+    smallBlindIndex = (gameState.dealerIndex + 1) % count;
+    bigBlindIndex = (gameState.dealerIndex + 2) % count;
+    firstPlayerIndex = getNextAbleToActIndex(bigBlindIndex);
   }
 
-  placeBet(gameState.players[sbIndex], gameState.smallBlind);
-  placeBet(gameState.players[bbIndex], gameState.bigBlind);
+  placeBet(gameState.players[smallBlindIndex], gameState.smallBlind);
+  placeBet(gameState.players[bigBlindIndex], gameState.bigBlind);
 
   gameState.currentPlayerIndex = firstPlayerIndex;
 
   io.emit('gameState', gameState);
-
   io.emit(
     'message',
-    `Nowa ręka! ${gameState.players[sbIndex].username}: SB, ` +
-    `${gameState.players[bbIndex].username}: BB`
+    `Nowa ręka! ${gameState.players[smallBlindIndex].username}: SB, ${gameState.players[bigBlindIndex].username}: BB`
   );
 }
 
@@ -258,7 +239,7 @@ function handlePlayerAction(player, action, amount) {
   } else if (action === 'call') {
     const toCall = Math.max(0, gameState.currentBet - player.bet);
     placeBet(player, toCall);
-    io.emit('message', `${player.username} sprawdził za ${Math.min(toCall, player.bet)}`);
+    io.emit('message', `${player.username} sprawdził.`);
   } else if (action === 'bet' || action === 'raise') {
     const totalBet = Number(amount);
 
@@ -275,12 +256,14 @@ function handlePlayerAction(player, action, amount) {
     return;
   }
 
-  nextPlayer();
+  advanceAfterAction();
 }
 
-function findNextPlayerIndex(fromIndex) {
-  for (let offset = 1; offset <= gameState.players.length; offset++) {
-    const index = (fromIndex + offset) % gameState.players.length;
+function getNextAbleToActIndex(fromIndex) {
+  const count = gameState.players.length;
+
+  for (let offset = 1; offset <= count; offset++) {
+    const index = (fromIndex + offset) % count;
     const player = gameState.players[index];
 
     if (player && !player.folded && !player.allIn) return index;
@@ -289,9 +272,8 @@ function findNextPlayerIndex(fromIndex) {
   return -1;
 }
 
-function nextPlayer() {
+function advanceAfterAction() {
   const playersStillInHand = gameState.players.filter(player => !player.folded);
-  const playersWhoCanAct = gameState.players.filter(player => !player.folded && !player.allIn);
 
   if (playersStillInHand.length === 1) {
     endRound();
@@ -302,17 +284,14 @@ function nextPlayer() {
     player.folded || player.allIn || player.bet === gameState.currentBet
   );
 
+  // Po Call / Check przechodzimy do kolejnej fazy.
   if (everyoneMatched) {
     nextPhase();
     return;
   }
 
-  if (playersWhoCanAct.length === 0) {
-    runOutCommunityCards();
-    return;
-  }
+  const nextIndex = getNextAbleToActIndex(gameState.currentPlayerIndex);
 
-  const nextIndex = findNextPlayerIndex(gameState.currentPlayerIndex);
   if (nextIndex === -1) {
     runOutCommunityCards();
     return;
@@ -350,7 +329,8 @@ function nextPhase() {
     return;
   }
 
-  gameState.currentPlayerIndex = findNextPlayerIndex(gameState.dealerIndex);
+  // Po flopie pierwsza osoba po dealerze ma ruch.
+  gameState.currentPlayerIndex = getNextAbleToActIndex(gameState.dealerIndex);
   io.emit('gameState', gameState);
   io.emit('message', `Faza: ${gameState.phase.toUpperCase()}`);
 }
@@ -384,6 +364,7 @@ function determineWinner() {
 
   activePlayers.forEach(player => {
     const score = evaluateHand([...player.cards, ...gameState.communityCards]);
+
     if (score > bestScore) {
       bestScore = score;
       winners = [player];
@@ -430,7 +411,9 @@ function finishHandOrGame() {
   gameState.dealerIndex = (gameState.dealerIndex + 1) % gameState.players.length;
 
   setTimeout(() => {
-    if (!gameState.gameOver && gameState.players.length >= 2) startNewRound();
+    if (!gameState.gameOver && gameState.players.length >= 2) {
+      startNewRound();
+    }
   }, 3000);
 }
 
