@@ -308,3 +308,27 @@ button { cursor: pointer; }
 .restart-game-button:hover {
   filter: brightness(1.08);
 }
+.player-hole-cards.shown-cards {
+  gap: 4px;
+}
+
+.mini-card-face {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #ddd6c8;
+  color: #1d2530;
+  font-family: Georgia, serif;
+  font-size: 0.7rem;
+  font-weight: bold;
+  background: linear-gradient(135deg, #fff, #dedbd5);
+  box-shadow: 1px 2px 3px rgba(0, 0, 0, 0.38);
+}
+
+.mini-card-face.red {
+  color: #ca2534;
+}
+
+.mini-card-face.black {
+  color: #1d2530;
+}
