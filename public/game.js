@@ -27,7 +27,6 @@ const messagesEl = document.getElementById('messages');
 const gameOverModal = document.getElementById('gameOverModal');
 const gameOverWinner = document.getElementById('gameOverWinner');
 const rankingList = document.getElementById('rankingList');
-
 const restartGameBtn = document.getElementById('restartGameBtn');
 
 const seatElements = [
