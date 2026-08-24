@@ -276,9 +276,24 @@ function handlePlayerAction(player, action, amount) {
     }
     io.emit('message', `${player.username} wykonał Check`);
   } else if (action === 'call') {
-    const toCall = Math.max(0, gameState.currentBet - player.bet);
-    placeBet(player, toCall);
-    io.emit('message', `${player.username} sprawdził.`);
+const toCall = Math.max(
+  0,
+  gameState.currentBet - player.bet
+);
+
+placeBet(player, toCall);
+
+io.emit(
+  'message',
+  `${player.username} sprawdził za ${toCall} punktów.`
+);
+
+if (player.allIn) {
+  io.emit(
+    'message',
+    `${player.username} jest all-in.`
+  );
+}
   } else if (action === 'bet' || action === 'raise') {
     const totalBet = Number(amount);
 
@@ -323,8 +338,19 @@ function advanceAfterAction() {
     return;
   }
 
-  const currentIndex = gameState.currentPlayerIndex;
-  const nextIndex = getNextAbleToActIndex(currentIndex);
+  const playersWhoCanAct = gameState.players.filter(
+    player => !player.folded && !player.allIn
+  );
+
+  /*
+    Jeśli po akcji nikt nie może już wykonać ruchu,
+    np. jeden gracz jest all-in, a drugi sprawdził,
+    od razu odkrywamy brakujące karty.
+  */
+  if (playersWhoCanAct.length === 0) {
+    runOutCommunityCards();
+    return;
+  }
 
   const everyoneMatched = gameState.players.every(
     player =>
@@ -333,9 +359,14 @@ function advanceAfterAction() {
       player.bet === gameState.currentBet
   );
 
+  const nextIndex = getNextAbleToActIndex(
+    gameState.currentPlayerIndex
+  );
+
   /*
-    Faza kończy się wyłącznie gdy wszyscy wyrównali zakład
-    ORAZ ruch wrócił do osoby, która zaczynała tę fazę.
+    Przechodzimy do następnej fazy dopiero wtedy,
+    gdy wszyscy wyrównali stawkę i ruch wrócił do pierwszego
+    gracza aktualnej fazy.
   */
   if (
     everyoneMatched &&
