@@ -218,6 +218,7 @@ function startNewRound() {
     player.bet = 0;
     player.folded = false;
     player.allIn = false;
+    player.showCards = false;
   });
 
   let smallBlindIndex;
@@ -444,6 +445,9 @@ function determineWinner() {
 
 function finishHandOrGame() {
   gameState.phase = 'showdown';
+  gameState.players.forEach(player => {
+    player.showCards = !player.folded;
+  });
   gameState.currentPlayerIndex = -1;
   io.emit('gameState', gameState);
 
