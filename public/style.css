@@ -332,3 +332,19 @@ button { cursor: pointer; }
 .mini-card-face.black {
   color: #1d2530;
 }
+.player-hole-cards {
+  gap: 6px;
+  min-height: 43px;
+  margin-top: 8px;
+}
+
+.mini-card {
+  width: 28px;
+  height: 40px;
+  border-radius: 4px;
+}
+
+.mini-card-face {
+  font-size: 0.95rem;
+  line-height: 1;
+}
