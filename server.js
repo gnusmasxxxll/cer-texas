@@ -451,20 +451,6 @@ function handlePlayerAction(player, action, amount) {
     gameState.currentBet - player.bet
   );
 
-  placeBet(player, toCall);
-
-  io.emit(
-    'message',
-    `${player.username} sprawdził za ${toCall} punktów.`
-  );
-
-  if (player.allIn) {
-    io.emit(
-      'message',
-      `${player.username} jest all-in.`
-    );
-  }
-
 placeBet(player, toCall);
 
 io.emit(
@@ -522,35 +508,41 @@ function advanceAfterAction() {
     return;
   }
 
-  const playersWhoCanAct = gameState.players.filter(
-    player => !player.folded && !player.allIn
+  const playersWhoCanAct = playersStillInHand.filter(
+    player => !player.allIn
   );
 
   /*
-    Gdy pozostali gracze są all-in albo wyrównali ich zakład,
-    nie czekamy na powrót do firstPlayerThisStreet.
+    Jeżeli nikt nie może już podejmować decyzji,
+    odkrywamy brakujące karty i przechodzimy do showdownu.
   */
-  const everyoneMatched = gameState.players.every(
-    player =>
-      player.folded ||
-      player.allIn ||
-      player.bet === gameState.currentBet
-  );
-
   if (playersWhoCanAct.length === 0) {
     runOutCommunityCards();
     return;
   }
 
   /*
-    Jeżeli wszyscy gracze, którzy mogą działać, wyrównali stawkę,
-    kończymy aktualną rundę licytacji.
+    Akcja jest zakończona dopiero, gdy każdy gracz,
+    który nie jest all-in, wyrównał aktualną stawkę.
   */
-  const activePlayersMatched = playersWhoCanAct.every(
+  const allAblePlayersMatched = playersWhoCanAct.every(
     player => player.bet === gameState.currentBet
   );
 
-  if (everyoneMatched || activePlayersMatched) {
+  if (allAblePlayersMatched) {
+    /*
+      Jeżeli co najmniej jeden gracz jest all-in, a drugi
+      wyrównał zakład, nie ma dalszej licytacji.
+    */
+    const hasAllInPlayer = playersStillInHand.some(
+      player => player.allIn
+    );
+
+    if (hasAllInPlayer) {
+      runOutCommunityCards();
+      return;
+    }
+
     nextPhase();
     return;
   }
@@ -618,17 +610,21 @@ function nextPhase() {
 }
 
 function runOutCommunityCards() {
+  if (gameState.handSettled) return;
+
   while (gameState.communityCards.length < 5) {
     gameState.communityCards.push(gameState.deck.pop());
   }
 
+  gameState.phase = 'showdown';
   gameState.currentPlayerIndex = -1;
 
-  io.emit('gameState', gameState);
   io.emit(
     'message',
-    'Wszyscy pozostali gracze są all-in. Odkrywanie kart...'
+    'All-in — odkrywanie pozostałych kart.'
   );
+
+  io.emit('gameState', gameState);
 
   setTimeout(() => {
     determineWinner();
