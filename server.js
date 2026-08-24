@@ -446,10 +446,24 @@ function handlePlayerAction(player, action, amount) {
     }
     io.emit('message', `${player.username} wykonał Check`);
   } else if (action === 'call') {
-const toCall = Math.max(
-  0,
-  gameState.currentBet - player.bet
-);
+  const toCall = Math.max(
+    0,
+    gameState.currentBet - player.bet
+  );
+
+  placeBet(player, toCall);
+
+  io.emit(
+    'message',
+    `${player.username} sprawdził za ${toCall} punktów.`
+  );
+
+  if (player.allIn) {
+    io.emit(
+      'message',
+      `${player.username} jest all-in.`
+    );
+  }
 
 placeBet(player, toCall);
 
@@ -513,15 +527,9 @@ function advanceAfterAction() {
   );
 
   /*
-    Jeśli po akcji nikt nie może już wykonać ruchu,
-    np. jeden gracz jest all-in, a drugi sprawdził,
-    od razu odkrywamy brakujące karty.
+    Gdy pozostali gracze są all-in albo wyrównali ich zakład,
+    nie czekamy na powrót do firstPlayerThisStreet.
   */
-  if (playersWhoCanAct.length === 0) {
-    runOutCommunityCards();
-    return;
-  }
-
   const everyoneMatched = gameState.players.every(
     player =>
       player.folded ||
@@ -529,22 +537,27 @@ function advanceAfterAction() {
       player.bet === gameState.currentBet
   );
 
-  const nextIndex = getNextAbleToActIndex(
-    gameState.currentPlayerIndex
-  );
+  if (playersWhoCanAct.length === 0) {
+    runOutCommunityCards();
+    return;
+  }
 
   /*
-    Przechodzimy do następnej fazy dopiero wtedy,
-    gdy wszyscy wyrównali stawkę i ruch wrócił do pierwszego
-    gracza aktualnej fazy.
+    Jeżeli wszyscy gracze, którzy mogą działać, wyrównali stawkę,
+    kończymy aktualną rundę licytacji.
   */
-  if (
-    everyoneMatched &&
-    nextIndex === gameState.firstPlayerThisStreet
-  ) {
+  const activePlayersMatched = playersWhoCanAct.every(
+    player => player.bet === gameState.currentBet
+  );
+
+  if (everyoneMatched || activePlayersMatched) {
     nextPhase();
     return;
   }
+
+  const nextIndex = getNextAbleToActIndex(
+    gameState.currentPlayerIndex
+  );
 
   if (nextIndex === -1) {
     runOutCommunityCards();
@@ -609,10 +622,6 @@ function runOutCommunityCards() {
     gameState.communityCards.push(gameState.deck.pop());
   }
 
-  /*
-    Nie ustawiamy tutaj phase = 'showdown',
-    ponieważ interfejs może wtedy czekać na kolejny ruch.
-  */
   gameState.currentPlayerIndex = -1;
 
   io.emit('gameState', gameState);
