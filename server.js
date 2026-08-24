@@ -134,14 +134,13 @@ io.on('connection', socket => {
   });
 
 socket.on('restartGame', () => {
-  // Restart jest dostępny tylko wtedy, gdy poprzednia partia się zakończyła.
   if (!gameState.gameOver) {
-    socket.emit('error', 'Możesz rozpocząć nową grę dopiero po zakończeniu bieżącej partii.');
+    socket.emit('error', 'Nową grę można rozpocząć dopiero po zakończeniu poprzedniej.');
     return;
   }
 
   if (gameState.players.length < 2) {
-    socket.emit('error', 'Do rozpoczęcia nowej gry potrzeba minimum 2 graczy przy stole.');
+    socket.emit('error', 'Do nowej gry potrzeba minimum 2 zalogowanych graczy.');
     return;
   }
 
@@ -155,7 +154,6 @@ socket.on('restartGame', () => {
   gameState.firstPlayerThisStreet = 0;
   gameState.phase = 'waiting';
 
-  // Każdy gracz znowu dostaje startową pulę punktów.
   gameState.players.forEach(player => {
     player.chips = 1000;
     player.cards = [];
@@ -166,7 +164,7 @@ socket.on('restartGame', () => {
 
   io.emit('gameRestarted');
   io.emit('gameState', gameState);
-  io.emit('message', 'Nowa gra jest gotowa. Kliknij „Rozpocznij rozdanie”.');
+  io.emit('message', 'Nowa gra jest gotowa. Kliknij Rozpocznij rozdanie.');
 });
   
   socket.on('playerAction', ({ action, amount }) => {
