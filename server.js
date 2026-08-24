@@ -82,7 +82,8 @@ let gameState = {
   phase: 'waiting',
   gameOver: false,
   smallBlind: 10,
-  bigBlind: 20
+  bigBlind: 20,
+  firstPlayerThisStreet: 0
 };
 
 io.on('connection', socket => {
@@ -204,6 +205,7 @@ function startNewRound() {
   placeBet(gameState.players[bigBlindIndex], gameState.bigBlind);
 
   gameState.currentPlayerIndex = firstPlayerIndex;
+  gameState.firstPlayerThisStreet = firstPlayerIndex;
 
   io.emit('gameState', gameState);
   io.emit(
@@ -272,6 +274,21 @@ function getNextAbleToActIndex(fromIndex) {
   return -1;
 }
 
+function getNextAbleToActIndex(fromIndex) {
+  const count = gameState.players.length;
+
+  for (let offset = 1; offset <= count; offset++) {
+    const index = (fromIndex + offset) % count;
+    const player = gameState.players[index];
+
+    if (player && !player.folded && !player.allIn) {
+      return index;
+    }
+  }
+
+  return -1;
+}
+
 function advanceAfterAction() {
   const playersStillInHand = gameState.players.filter(player => !player.folded);
 
@@ -280,18 +297,28 @@ function advanceAfterAction() {
     return;
   }
 
+  const currentIndex = gameState.currentPlayerIndex;
+  const nextIndex = getNextAbleToActIndex(currentIndex);
+
+  // Wszyscy aktywni gracze wyrównali zakład.
   const everyoneMatched = gameState.players.every(player =>
     player.folded || player.allIn || player.bet === gameState.currentBet
   );
 
-  // Po Call / Check przechodzimy do kolejnej fazy.
-  if (everyoneMatched) {
+  /*
+    Faza może skończyć się dopiero, gdy:
+    1. wszyscy wyrównali stawkę,
+    2. ruch wrócił do pierwszego gracza tej fazy.
+
+    Bez second condition po flopie pierwszy Check od razu kończył fazę,
+    przez co drugi gracz grał sam do końca rozdania.
+  */
+  if (everyoneMatched && nextIndex === gameState.firstPlayerThisStreet) {
     nextPhase();
     return;
   }
 
-  const nextIndex = getNextAbleToActIndex(gameState.currentPlayerIndex);
-
+  // Gdy wszyscy aktywni gracze są all-in, nie ma dalszej licytacji.
   if (nextIndex === -1) {
     runOutCommunityCards();
     return;
@@ -305,11 +332,15 @@ function nextPhase() {
   gameState.players.forEach(player => {
     player.bet = 0;
   });
-  gameState.currentBet = 0;
+   gameState.currentBet = 0;
 
   if (gameState.phase === 'preflop') {
     gameState.phase = 'flop';
-    gameState.communityCards.push(gameState.deck.pop(), gameState.deck.pop(), gameState.deck.pop());
+    gameState.communityCards.push(
+      gameState.deck.pop(),
+      gameState.deck.pop(),
+      gameState.deck.pop()
+    );
   } else if (gameState.phase === 'flop') {
     gameState.phase = 'turn';
     gameState.communityCards.push(gameState.deck.pop());
@@ -322,15 +353,16 @@ function nextPhase() {
     return;
   }
 
-  const playersWhoCanAct = gameState.players.filter(player => !player.folded && !player.allIn);
+const firstIndex = getNextAbleToActIndex(gameState.dealerIndex);
 
-  if (playersWhoCanAct.length === 0) {
+ if (firstIndex === -1) {
     runOutCommunityCards();
     return;
-  }
 
-  // Po flopie pierwsza osoba po dealerze ma ruch.
-  gameState.currentPlayerIndex = getNextAbleToActIndex(gameState.dealerIndex);
+  // Zapamiętujemy, kto rozpoczyna tę konkretną rundę licytacji.
+  gameState.firstPlayerThisStreet = firstIndex;
+  gameState.currentPlayerIndex = firstIndex;
+
   io.emit('gameState', gameState);
   io.emit('message', `Faza: ${gameState.phase.toUpperCase()}`);
 }
@@ -438,6 +470,7 @@ function resetGame() {
     dealerIndex: 0,
     currentPlayerIndex: 0,
     phase: 'waiting',
+    firstPlayerThisStreet: 0,
     gameOver: false,
     smallBlind: 10,
     bigBlind: 20
