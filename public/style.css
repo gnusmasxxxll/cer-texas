@@ -225,7 +225,7 @@ button { cursor: pointer; }
   display: grid;
   place-items: center;
   padding: 20px;
-  background: rgba(0, 0, 0, 0.78);
+  background: rgba(0, 0, 0, .82);
   backdrop-filter: blur(5px);
 }
 
@@ -234,15 +234,15 @@ button { cursor: pointer; }
   padding: 30px;
   border: 2px solid #f4cc63;
   border-radius: 18px;
+  color: white;
   text-align: center;
   background: linear-gradient(145deg, #17372d, #071710);
-  box-shadow: 0 22px 70px rgba(0, 0, 0, 0.75);
+  box-shadow: 0 22px 70px rgba(0, 0, 0, .75);
 }
 
 .game-over-symbol {
   color: #f4cc63;
   font-size: 3.5rem;
-  line-height: 1;
 }
 
 .game-over-box h2 {
@@ -252,12 +252,11 @@ button { cursor: pointer; }
 }
 
 .game-over-box h3 {
-  margin: 24px 0 10px;
+  margin: 22px 0 10px;
   color: #fff2c6;
 }
 
 .game-over-winner {
-  margin: 0;
   color: #9af0bd;
   font-size: 1.1rem;
   font-weight: bold;
@@ -274,9 +273,9 @@ button { cursor: pointer; }
   align-items: center;
   gap: 8px;
   padding: 11px;
-  border: 1px solid rgba(244, 204, 99, 0.3);
+  border: 1px solid rgba(244, 204, 99, .3);
   border-radius: 9px;
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, .3);
   text-align: left;
 }
 
@@ -287,24 +286,18 @@ button { cursor: pointer; }
 }
 
 .ranking-name {
-  color: #ffffff;
+  color: white;
   font-weight: bold;
 }
 
 .ranking-chips {
   color: #85dfc0;
-  font-size: 0.9rem;
+  font-size: .9rem;
 }
 
-.game-over-note {
-  margin: 20px 0 0;
-  color: #c7c7c7;
-  font-size: 0.82rem;
-  line-height: 1.4;
-}
 .restart-game-button {
   width: 100%;
-  margin-top: 18px;
+  margin-top: 22px;
   padding: 13px 18px;
   border: 0;
   border-radius: 9px;
