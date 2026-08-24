@@ -80,9 +80,11 @@ logoutBtn.addEventListener('click', () => {
   loginMessage.textContent = 'Wylogowano pomyślnie.';
 });
 
-restartGameBtn.addEventListener('click', () => {
-  socket.emit('restartGame');
-});
+if (restartGameBtn) {
+  restartGameBtn.addEventListener('click', () => {
+    socket.emit('restartGame');
+  });
+}
 
 
 socket.on('connect', () => {
