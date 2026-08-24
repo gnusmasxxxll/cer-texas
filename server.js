@@ -476,15 +476,18 @@ function determineWinner() {
   });
   
   // Wszyscy, którzy nie spasowali, ujawniają karty.
-  const showdownPlayers = gameState.players.map(player => ({
-    id: player.id,
-    username: player.username,
-    cards: player.folded ? [] : player.cards,
-    folded: player.folded,
-    chips: player.chips,
-    bet: player.bet,
-    isWinner: winners.some(winner => winner.username === player.username)
-  }));
+const showdownPlayers = gameState.players.map(player => ({
+  id: player.id,
+  username: player.username,
+  cards: player.folded ? [] : player.cards,
+  folded: player.folded,
+  chips: player.chips,
+  bet: player.bet,
+  showCards: !player.folded,
+  isWinner: winners.some(
+    winner => winner.username === player.username
+  )
+}));
 
   io.emit('gameState', gameState);
   io.emit('showdownResult', {
