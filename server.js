@@ -214,13 +214,13 @@ function startNewRound() {
   gameState.phase = 'preflop';
   gameState.handSettled = false;
 
-  gameState.players.forEach(player => {
-    player.cards = [gameState.deck.pop(), gameState.deck.pop()];
-    player.bet = 0;
-    player.folded = false;
-    player.allIn = false;
-    player.showCards = false;
-  });
+gameState.players.forEach(player => {
+  player.cards = [gameState.deck.pop(), gameState.deck.pop()];
+  player.bet = 0;
+  player.folded = false;
+  player.allIn = false;
+  player.showCards = false;
+});
 
   let smallBlindIndex;
   let bigBlindIndex;
@@ -433,34 +433,68 @@ function determineWinner() {
   gameState.phase = 'showdown';
   gameState.currentPlayerIndex = -1;
 
-  io.emit('gameState', gameState);
-
-  const activePlayers = gameState.players.filter(
-    player => !player.folded
-  );
+  const activePlayers = gameState.players.filter(player => !player.folded);
 
   if (activePlayers.length === 0) {
-    gameState.handSettled = false;
+    io.emit('gameState', gameState);
     finishHandOrGame();
     return;
   }
+
+  let bestScore = -1;
+  let winners = [];
 
   if (activePlayers.length === 1) {
-    const winner = activePlayers[0];
-    const wonPot = gameState.pot;
+    winners = [activePlayers[0]];
+  } else {
+    activePlayers.forEach(player => {
+      const score = evaluateHand([
+        ...player.cards,
+        ...gameState.communityCards
+      ]);
 
-    winner.chips += wonPot;
-    gameState.pot = 0;
-
-    io.emit(
-      'message',
-      `${winner.username} wygrywa ${wonPot} punktów!`
-    );
-
-    finishHandOrGame();
-    return;
+      if (score > bestScore) {
+        bestScore = score;
+        winners = [player];
+      } else if (score === bestScore) {
+        winners.push(player);
+      }
+    });
   }
 
+  const wonPot = gameState.pot;
+  const winAmount = Math.floor(wonPot / winners.length);
+
+  winners.forEach(winner => {
+    winner.chips += winAmount;
+  });
+
+  gameState.pot = 0;
+
+  // Wszyscy, którzy nie spasowali, ujawniają karty.
+  const showdownPlayers = gameState.players.map(player => ({
+    id: player.id,
+    username: player.username,
+    cards: player.folded ? [] : player.cards,
+    folded: player.folded,
+    chips: player.chips,
+    bet: player.bet,
+    isWinner: winners.some(winner => winner.username === player.username)
+  }));
+
+  io.emit('gameState', gameState);
+  io.emit('showdownResult', {
+    players: showdownPlayers,
+    winners: winners.map(winner => winner.username),
+    pot: wonPot
+  });
+
+  winners.forEach(winner => {
+    io.emit('message', `${winner.username} wygrywa ${winAmount} punktów!`);
+  });
+
+  finishHandOrGame();
+}
   // dalsza część obecnej funkcji:
   // bestScore, winners, evaluateHand itd.
 
