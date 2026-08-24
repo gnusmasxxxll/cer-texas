@@ -280,6 +280,14 @@ function createSeatHTML(player, isMine, state) {
       <div class="player-bet">${player.bet > 0 ? `Stawka: ${player.bet}` : 'Stawka: —'}</div>
       <div class="player-status">${status}</div>
       ${isMine ? '' : `
+        if (player.showCards && player.cards?.length === 2) {
+        return `
+          <div class="player-hole-cards shown-cards">
+          ${createMiniCardHTML(player.cards[0])}
+          ${createMiniCardHTML(player.cards[1])}
+          </div>
+        `;
+  }
         <div class="player-hole-cards">
           <div class="mini-card"></div>
           <div class="mini-card"></div>
@@ -288,7 +296,15 @@ function createSeatHTML(player, isMine, state) {
     </article>
   `;
 }
+function createMiniCardHTML(card) {
+  const isRed = card.suit === '♥' || card.suit === '♦';
 
+  return `
+    <div class="mini-card mini-card-face ${isRed ? 'red' : 'black'}">
+      ${card.value}${card.suit}
+    </div>
+  `;
+}
 function createEmptySeatHTML(label) {
   return `
     <div class="seat-empty">
