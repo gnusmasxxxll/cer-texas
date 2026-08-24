@@ -83,7 +83,8 @@ let gameState = {
   gameOver: false,
   smallBlind: 10,
   bigBlind: 20,
-  firstPlayerThisStreet: 0
+  firstPlayerThisStreet: 0,
+  handSettled: false
 };
 
 io.on('connection', socket => {
@@ -470,7 +471,10 @@ function determineWinner() {
   });
 
   gameState.pot = 0;
-
+  gameState.players.forEach(player => {
+  player.showCards = !player.folded;
+  });
+  
   // Wszyscy, którzy nie spasowali, ujawniają karty.
   const showdownPlayers = gameState.players.map(player => ({
     id: player.id,
@@ -573,7 +577,8 @@ function resetGame() {
     firstPlayerThisStreet: 0,
     gameOver: false,
     smallBlind: 10,
-    bigBlind: 20
+    bigBlind: 20,
+    handSettled: false
   };
 
   io.emit('gameState', gameState);
