@@ -254,7 +254,8 @@ let gameState = {
   smallBlind: 10,
   bigBlind: 20,
   firstPlayerThisStreet: 0,
-  handSettled: false
+  handSettled: false,
+   actedThisStreet: []
 };
 
 io.on('connection', socket => {
@@ -384,6 +385,7 @@ function startNewRound() {
   gameState.currentBet = gameState.bigBlind;
   gameState.phase = 'preflop';
   gameState.handSettled = false;
+  gameState.actedThisStreet = [];
 
 gameState.players.forEach(player => {
   player.cards = [gameState.deck.pop(), gameState.deck.pop()];
@@ -410,6 +412,11 @@ gameState.players.forEach(player => {
 
   placeBet(gameState.players[smallBlindIndex], gameState.smallBlind);
   placeBet(gameState.players[bigBlindIndex], gameState.bigBlind);
+
+  gameState.actedThisStreet = [
+  gameState.players[smallBlindIndex].id,
+  gameState.players[bigBlindIndex].id
+  ];
 
   gameState.currentPlayerIndex = firstPlayerIndex;
   gameState.firstPlayerThisStreet = firstPlayerIndex;
@@ -483,12 +490,17 @@ function handlePlayerAction(player, action, amount) {
     */
     const amountToAdd = totalBet - player.bet;
 
-    placeBet(player, amountToAdd);
+placeBet(player, amountToAdd);
 
-    gameState.currentBet = Math.max(
-      gameState.currentBet,
-      player.bet
-    );
+gameState.currentBet = Math.max(
+  gameState.currentBet,
+  player.bet
+);
+
+/*
+  Podbicie wymaga ponownego ruchu pozostałych graczy.
+*/
+gameState.actedThisStreet = [player.id];
 
     io.emit(
       'message',
@@ -502,7 +514,9 @@ function handlePlayerAction(player, action, amount) {
     io.to(player.id).emit('error', 'Nieznana akcja.');
     return;
   }
-
+if (!gameState.actedThisStreet.includes(player.id)) {
+  gameState.actedThisStreet.push(player.id);
+}
   advanceAfterAction();
 }
 
@@ -535,24 +549,24 @@ function advanceAfterAction() {
     player => !player.allIn
   );
 
-  /*
-    Nikt nie może już wykonać ruchu.
-    Odkrywamy wszystkie brakujące karty.
-  */
   if (ableToAct.length === 0) {
     runOutCommunityCards();
     return;
   }
 
   /*
-    Jeżeli pozostali gracze, którzy mogą działać,
-    wyrównali stawkę, kończymy licytację.
+    Runda może się zakończyć dopiero, gdy każdy gracz,
+    który nie spasował i nie jest all-in:
+    - wykonał akcję w tej fazie,
+    - ma wyrównaną aktualną stawkę.
   */
-  const allAblePlayersMatched = ableToAct.every(
-    player => player.bet >= gameState.currentBet
+  const bettingRoundComplete = ableToAct.every(
+    player =>
+      gameState.actedThisStreet.includes(player.id) &&
+      player.bet === gameState.currentBet
   );
 
-  if (allAblePlayersMatched) {
+  if (bettingRoundComplete) {
     const anyAllIn = activePlayers.some(
       player => player.allIn
     );
@@ -566,10 +580,6 @@ function advanceAfterAction() {
     return;
   }
 
-  /*
-    Szukamy następnego gracza, który nie spasował
-    i nie jest all-in.
-  */
   const nextIndex = getNextAbleToActIndex(
     gameState.currentPlayerIndex
   );
@@ -589,6 +599,7 @@ function nextPhase() {
   });
 
   gameState.currentBet = 0;
+  gameState.actedThisStreet = [];
 
   if (gameState.phase === 'preflop') {
     gameState.phase = 'flop';
@@ -824,7 +835,8 @@ function resetGame() {
     gameOver: false,
     smallBlind: 10,
     bigBlind: 20,
-    handSettled: false
+    handSettled: false,
+    actedThisStreet: []
   };
 
   io.emit('gameState', gameState);
