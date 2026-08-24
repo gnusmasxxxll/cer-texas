@@ -212,6 +212,7 @@ function startNewRound() {
   gameState.pot = 0;
   gameState.currentBet = gameState.bigBlind;
   gameState.phase = 'preflop';
+  gameState.handSettled = false;
 
   gameState.players.forEach(player => {
     player.cards = [gameState.deck.pop(), gameState.deck.pop()];
@@ -361,6 +362,7 @@ function nextPhase() {
 
   if (gameState.phase === 'preflop') {
     gameState.phase = 'flop';
+
     gameState.communityCards.push(
       gameState.deck.pop(),
       gameState.deck.pop(),
@@ -373,7 +375,11 @@ function nextPhase() {
     gameState.phase = 'river';
     gameState.communityCards.push(gameState.deck.pop());
   } else if (gameState.phase === 'river') {
-    gameState.phase = 'showdown';
+    /*
+      River został rozegrany.
+      Nie ustawiamy tutaj osobnego oczekiwania na showdown.
+      Od razu wyliczamy zwycięzcę i rozliczamy pulę.
+    */
     determineWinner();
     return;
   }
@@ -385,15 +391,15 @@ function nextPhase() {
     return;
   }
 
-  /*
-    Zapamiętujemy osobę, która rozpoczyna właśnie rozpoczętą
-    rundę licytacji: flop, turn albo river.
-  */
   gameState.firstPlayerThisStreet = firstIndex;
   gameState.currentPlayerIndex = firstIndex;
 
   io.emit('gameState', gameState);
-  io.emit('message', `Faza: ${gameState.phase.toUpperCase()}`);
+
+  io.emit(
+    'message',
+    `Faza: ${gameState.phase.toUpperCase()}`
+  );
 }
 
 function runOutCommunityCards() {
@@ -401,22 +407,40 @@ function runOutCommunityCards() {
     gameState.communityCards.push(gameState.deck.pop());
   }
 
-  gameState.phase = 'showdown';
+  /*
+    Nie ustawiamy tutaj phase = 'showdown',
+    ponieważ interfejs może wtedy czekać na kolejny ruch.
+  */
   gameState.currentPlayerIndex = -1;
-  io.emit('gameState', gameState);
-  io.emit('message', 'Wszyscy pozostali gracze są all-in. Odkrywanie kart...');
 
-  setTimeout(() => determineWinner(), 1200);
+  io.emit('gameState', gameState);
+  io.emit(
+    'message',
+    'Wszyscy pozostali gracze są all-in. Odkrywanie kart...'
+  );
+
+  setTimeout(() => {
+    determineWinner();
+  }, 1200);
 }
 
 function determineWinner() {
-  // Zabezpieczenie przed ponownym rozliczeniem tego samego rozdania.
-  if (gameState.handSettled) return;
-  gameState.handSettled = true;
+  if (gameState.handSettled) {
+    return;
+  }
 
-  const activePlayers = gameState.players.filter(player => !player.folded);
+  gameState.handSettled = true;
+  gameState.phase = 'showdown';
+  gameState.currentPlayerIndex = -1;
+
+  io.emit('gameState', gameState);
+
+  const activePlayers = gameState.players.filter(
+    player => !player.folded
+  );
 
   if (activePlayers.length === 0) {
+    gameState.handSettled = false;
     finishHandOrGame();
     return;
   }
@@ -428,10 +452,17 @@ function determineWinner() {
     winner.chips += wonPot;
     gameState.pot = 0;
 
-    io.emit('message', `${winner.username} wygrywa ${wonPot} punktów!`);
+    io.emit(
+      'message',
+      `${winner.username} wygrywa ${wonPot} punktów!`
+    );
+
     finishHandOrGame();
     return;
   }
+
+  // dalsza część obecnej funkcji:
+  // bestScore, winners, evaluateHand itd.
 
   let bestScore = -1;
   let winners = [];
@@ -464,13 +495,13 @@ function determineWinner() {
 
 function finishHandOrGame() {
   gameState.phase = 'showdown';
-  gameState.players.forEach(player => {
-    player.showCards = !player.folded;
-  });
   gameState.currentPlayerIndex = -1;
+
   io.emit('gameState', gameState);
 
-  const playersWithPoints = gameState.players.filter(player => player.chips > 0);
+  const playersWithPoints = gameState.players.filter(
+    player => player.chips > 0
+  );
 
   if (playersWithPoints.length <= 1) {
     gameState.gameOver = true;
@@ -486,15 +517,23 @@ function finishHandOrGame() {
         chips: player.chips
       }));
 
-    io.emit('gameOver', { winner: playersWithPoints[0] || null, ranking });
+    io.emit('gameOver', {
+      winner: playersWithPoints[0] || null,
+      ranking
+    });
+
     io.emit('gameState', gameState);
     return;
   }
 
-  gameState.dealerIndex = (gameState.dealerIndex + 1) % gameState.players.length;
+  gameState.dealerIndex =
+    (gameState.dealerIndex + 1) % gameState.players.length;
 
   setTimeout(() => {
-    if (!gameState.gameOver && gameState.players.length >= 2) {
+    if (
+      !gameState.gameOver &&
+      gameState.players.length >= 2
+    ) {
       startNewRound();
     }
   }, 10000);
