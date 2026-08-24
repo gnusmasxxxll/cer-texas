@@ -410,12 +410,25 @@ function runOutCommunityCards() {
 }
 
 function determineWinner() {
+  // Zabezpieczenie przed ponownym rozliczeniem tego samego rozdania.
+  if (gameState.handSettled) return;
+  gameState.handSettled = true;
+
   const activePlayers = gameState.players.filter(player => !player.folded);
+
+  if (activePlayers.length === 0) {
+    finishHandOrGame();
+    return;
+  }
 
   if (activePlayers.length === 1) {
     const winner = activePlayers[0];
-    winner.chips += gameState.pot;
-    io.emit('message', `${winner.username} wygrywa pulę: ${gameState.pot} punktów!`);
+    const wonPot = gameState.pot;
+
+    winner.chips += wonPot;
+    gameState.pot = 0;
+
+    io.emit('message', `${winner.username} wygrywa ${wonPot} punktów!`);
     finishHandOrGame();
     return;
   }
@@ -424,7 +437,10 @@ function determineWinner() {
   let winners = [];
 
   activePlayers.forEach(player => {
-    const score = evaluateHand([...player.cards, ...gameState.communityCards]);
+    const score = evaluateHand([
+      ...player.cards,
+      ...gameState.communityCards
+    ]);
 
     if (score > bestScore) {
       bestScore = score;
@@ -434,7 +450,10 @@ function determineWinner() {
     }
   });
 
-  const winAmount = Math.floor(gameState.pot / winners.length);
+  const wonPot = gameState.pot;
+  const winAmount = Math.floor(wonPot / winners.length);
+  gameState.pot = 0;
+
   winners.forEach(winner => {
     winner.chips += winAmount;
     io.emit('message', `${winner.username} wygrywa ${winAmount} punktów!`);
@@ -482,11 +501,18 @@ function finishHandOrGame() {
 }
 
 function endRound() {
+  // Zabezpieczenie przed drugim rozliczeniem puli po Fold.
+  if (gameState.handSettled) return;
+  gameState.handSettled = true;
+
   const winner = gameState.players.find(player => !player.folded);
 
   if (winner) {
-    winner.chips += gameState.pot;
-    io.emit('message', `${winner.username} wygrywa pulę: ${gameState.pot} punktów!`);
+    const wonPot = gameState.pot;
+    winner.chips += wonPot;
+    gameState.pot = 0;
+
+    io.emit('message', `${winner.username} wygrywa ${wonPot} punktów!`);
   }
 
   finishHandOrGame();
