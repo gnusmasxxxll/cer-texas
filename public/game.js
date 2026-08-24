@@ -158,7 +158,9 @@ socket.on('gameOver', data => {
 });
 
 socket.on('gameRestarted', () => {
+  if (restartGameBtn) {
   restartGameBtn.classList.add('hidden');
+  }
   startBtn.classList.remove('hidden');
   gameControls.classList.add('hidden');
 
@@ -272,27 +274,48 @@ function createSeatHTML(player, isMine, state) {
         ? 'TWOJA KOLEJ'
         : '';
 
-  return `
-    <article class="${classes}">
-      <div class="player-avatar">${escapeHTML(player.username.charAt(0).toUpperCase())}</div>
-      <div class="player-name">${escapeHTML(player.username)}${isMine ? ' (Ty)' : ''}</div>
-      <div class="player-chips">● ${player.chips} żetonów</div>
-      <div class="player-bet">${player.bet > 0 ? `Stawka: ${player.bet}` : 'Stawka: —'}</div>
-      <div class="player-status">${status}</div>
-      ${isMine ? '' : `
-        if (player.showCards && player.cards?.length === 2) {
-        return `
-          <div class="player-hole-cards shown-cards">
-          ${createMiniCardHTML(player.cards[0])}
-          ${createMiniCardHTML(player.cards[1])}
-          </div>
-        `;
-  }
+  let opponentCards = '';
+
+  if (!isMine) {
+    if (player.showCards && player.cards && player.cards.length === 2) {
+      const firstCard = createMiniCardHTML(player.cards[0]);
+      const secondCard = createMiniCardHTML(player.cards[1]);
+
+      opponentCards = `
+        <div class="player-hole-cards shown-cards">
+          ${firstCard}
+          ${secondCard}
+        </div>
+      `;
+    } else {
+      opponentCards = `
         <div class="player-hole-cards">
           <div class="mini-card"></div>
           <div class="mini-card"></div>
         </div>
-      `}
+      `;
+    }
+  }
+
+  return `
+    <article class="${classes}">
+      <div class="player-avatar">
+        ${escapeHTML(player.username.charAt(0).toUpperCase())}
+      </div>
+
+      <div class="player-name">
+        ${escapeHTML(player.username)}${isMine ? ' (Ty)' : ''}
+      </div>
+
+      <div class="player-chips">● ${player.chips} żetonów</div>
+
+      <div class="player-bet">
+        ${player.bet > 0 ? `Stawka: ${player.bet}` : 'Stawka: —'}
+      </div>
+
+      <div class="player-status">${status}</div>
+
+      ${opponentCards}
     </article>
   `;
 }
@@ -376,7 +399,9 @@ function showGameOver(data) {
     ? data.winner.username
     : 'Brak zwycięzcy';
 
+  if (restartGameBtn) {
   restartGameBtn.classList.remove('hidden');
+  }
   startBtn.classList.add('hidden');
   gameControls.classList.add('hidden');
 
